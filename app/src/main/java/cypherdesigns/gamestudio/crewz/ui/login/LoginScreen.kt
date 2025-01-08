@@ -48,12 +48,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.fragment.app.FragmentActivity
 import java.util.concurrent.Executor
 import androidx.compose.ui.text.font.FontStyle
+import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.P)
 @Composable
 fun LoginScreen(
-    viewModel: ChatViewModel,
+    viewModel: UserViewModel,
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit
 ) {
@@ -200,7 +201,7 @@ fun showBiometricPrompt(
     activity: FragmentActivity,
     onLoginSuccess: () -> Unit,
     onLoginFailure: (String) -> Unit,
-    viewModel: ChatViewModel
+    viewModel: UserViewModel
 ) {
     // Executor for handling the prompt's callback
     val executor: Executor = activity.mainExecutor

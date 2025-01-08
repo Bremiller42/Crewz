@@ -28,6 +28,7 @@ import cypherdesigns.gamestudio.crewz.ui.screens.SettingsScreen
 import cypherdesigns.gamestudio.crewz.ui.screens.UploadImageScreen
 import cypherdesigns.gamestudio.crewz.viewmodel.ChatViewModel
 import cypherdesigns.gamestudio.crewz.viewmodel.GalleryViewModel
+import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 import kotlinx.coroutines.flow.map
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -37,6 +38,8 @@ fun AppNavigation() {
     val bottomBarRoutes = listOf("home", "map", "chat", "gallery") // Routes that should show the BottomBar
     val chatViewModel: ChatViewModel = viewModel()
     val galleryViewModel: GalleryViewModel = viewModel()
+    val userViewModel: UserViewModel = viewModel()
+
     val storageReference = FirebaseStorage.getInstance().reference
 
     Scaffold(
@@ -56,7 +59,7 @@ fun AppNavigation() {
         ) {
             composable("login") {
                 LoginScreen(
-                    viewModel = chatViewModel,
+                    viewModel = userViewModel,
                     onLoginSuccess = {
                         navController.navigate("home") {
                             popUpTo("login") { inclusive = true }
@@ -110,7 +113,7 @@ fun AppNavigation() {
             }
 
             composable("upload") {
-                UploadImageScreen(storageReference = storageReference, galleryViewModel = galleryViewModel, chatViewModel = chatViewModel, onNavigateToGalleryScreen = { navController.navigate("gallery") })
+                UploadImageScreen(storageReference = storageReference, galleryViewModel = galleryViewModel, userViewModel = userViewModel, onNavigateToGalleryScreen = { navController.navigate("gallery") })
             }
             composable("chat") {
                 ChatroomListScreen(
@@ -126,9 +129,9 @@ fun AppNavigation() {
                 ChatroomScreen(viewModel = chatViewModel, chatroomId = chatroomId)
             }
             composable("settings") {
-                val firstName = chatViewModel.cachedUserFirstName
-                val lastName = chatViewModel.cachedUserLastName
-                val userEmail = chatViewModel.cachedUserEmail
+                val firstName = userViewModel.cachedUserFirstName
+                val lastName = userViewModel.cachedUserLastName
+                val userEmail = userViewModel.cachedUserEmail
 
                 SettingsScreen(
                     firstName = firstName,
@@ -136,7 +139,7 @@ fun AppNavigation() {
                     userEmail = userEmail,
 //                    isLocationSharingEnabled = chatViewModel.isLocationSharingEnabled, When database is ready
                     isLocationSharingEnabled = false,
-                    onToggleLocationSharing = { chatViewModel.toggleLocationSharing() },
+                    onToggleLocationSharing = { userViewModel.toggleLocationSharing() },
                     onBack = { navController.popBackStack() }
                 )
             }

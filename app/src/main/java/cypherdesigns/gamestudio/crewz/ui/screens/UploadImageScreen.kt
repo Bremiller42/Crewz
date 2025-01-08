@@ -34,6 +34,7 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.StorageReference
 import cypherdesigns.gamestudio.crewz.viewmodel.GalleryViewModel
 import cypherdesigns.gamestudio.crewz.viewmodel.ChatViewModel
+import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,7 +47,7 @@ import kotlinx.coroutines.withContext
 fun UploadImageScreen(
     storageReference: StorageReference,
     galleryViewModel: GalleryViewModel,
-    chatViewModel: ChatViewModel,
+    userViewModel: UserViewModel,
     onNavigateToGalleryScreen: () -> Unit
 ) {
     var imageUri by remember { mutableStateOf<Uri?>(null) }
@@ -103,7 +104,7 @@ fun UploadImageScreen(
                 onClick = {
                     CoroutineScope(Dispatchers.IO).launch {
                         val uploadedUrl = uploadImage(storageReference, uri)
-                        val uploaderName = chatViewModel.cachedUserFirstName ?: "Unknown User"
+                        val uploaderName = userViewModel.cachedUserFirstName ?: "Unknown User"
                         if (uploadedUrl != null) {
                             saveImageUrlToDatabase(uploadedUrl, uploaderName)
                             galleryViewModel.fetchImageUrls()
