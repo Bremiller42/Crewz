@@ -1,55 +1,44 @@
 package cypherdesigns.gamestudio.crewz.viewmodel
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.auth.FirebaseAuth
+import cypherdesigns.gamestudio.crewz.data.repository.UserRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class UserViewModel: ViewModel() {
-    var cachedUserFirstName: String? = null
-        private set
-    var cachedUserLastName: String? = null
-        private set
-    var cachedUserEmail: String? = null
-        private set
+    private val userRepository = UserRepository()
+    val currentUserId: String? = FirebaseAuth.getInstance().currentUser?.uid
+    val cachedFirstName: String?
+        get() = userRepository.cachedUserFirstName
+    val cachedLastName: String?
+        get() = userRepository.cachedUserLastName
+    val cachedEmail: String?
+        get() = userRepository.cachedUserEmail
+    val cachedLocationSharingEnabled: Boolean
+        get() = userRepository.cachedLocationSharingEnabled
 
-    var isLocationSharingEnabled by mutableStateOf(false)
-        private set
+    private val _isLocationSharingEnabled = MutableStateFlow(false)
+    val isLocationSharingEnabled = _isLocationSharingEnabled.asStateFlow()
 
-    fun fetchAndCacheUserDetails(userId: String) {
-        println("Fetching user details from Firestore for userId: $userId")
-        val firestore = FirebaseFirestore.getInstance()
-        firestore.collection("users").document(userId).get()
-            .addOnSuccessListener { documentSnapshot ->
-                if (documentSnapshot.exists()) {
-                    println("Document Snapshot: ${documentSnapshot.data}")
-
-                    val firstName = documentSnapshot.getString("firstName")
-                    val lastName = documentSnapshot.getString("lastName")
-                    val userEmail = documentSnapshot.getString("email")
-
-                    cachedUserFirstName = firstName
-                    println("Cached user first name: $cachedUserFirstName")
-
-                    cachedUserLastName = lastName
-                    println("Cached user last name: $cachedUserLastName")
-
-                    cachedUserEmail = userEmail
-                    println("Cached user email: $cachedUserEmail")
-
-                    println("GitCheck")
-                } else {
-                    println("No user details found in Firestore for userId: $userId")
-                }
-            }
-            .addOnFailureListener {
-                println("Failed to fetch user details from Firestore: ${it.message}")
-            }
+    fun fetchUserDetails(userId: String) {
+        userRepository.fetchAndCacheUserDetails(userId)
     }
 
-    fun toggleLocationSharing() {
-        isLocationSharingEnabled = !isLocationSharingEnabled
+    fun observeUserDetails(userId: String) {
+        userRepository.observeUserDetails(userId) { isEnabled ->
+            _isLocationSharingEnabled.value = isEnabled
+        }
+    }
+
+    fun toggleLocationSharing(userId: String, isEnabled: Boolean) {
+        userRepository.updateLocationSharing(userId, isEnabled) { success ->
+            if (success) {
+                println("Location sharing toggled successfully")
+            } else {
+                println("Failed to toggle location sharing")
+            }
+        }
     }
 
 }

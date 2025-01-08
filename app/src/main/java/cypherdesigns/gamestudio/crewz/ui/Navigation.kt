@@ -18,6 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.google.firebase.storage.FirebaseStorage
+import cypherdesigns.gamestudio.crewz.data.repository.UserRepository
 import cypherdesigns.gamestudio.crewz.ui.screens.HomeScreen
 import cypherdesigns.gamestudio.crewz.ui.login.LoginScreen
 import cypherdesigns.gamestudio.crewz.ui.login.RegisterScreen
@@ -39,7 +40,6 @@ fun AppNavigation() {
     val chatViewModel: ChatViewModel = viewModel()
     val galleryViewModel: GalleryViewModel = viewModel()
     val userViewModel: UserViewModel = viewModel()
-
     val storageReference = FirebaseStorage.getInstance().reference
 
     Scaffold(
@@ -129,19 +129,13 @@ fun AppNavigation() {
                 ChatroomScreen(viewModel = chatViewModel, chatroomId = chatroomId)
             }
             composable("settings") {
-                val firstName = userViewModel.cachedUserFirstName
-                val lastName = userViewModel.cachedUserLastName
-                val userEmail = userViewModel.cachedUserEmail
-
-                SettingsScreen(
-                    firstName = firstName,
-                    lastName = lastName,
-                    userEmail = userEmail,
-//                    isLocationSharingEnabled = chatViewModel.isLocationSharingEnabled, When database is ready
-                    isLocationSharingEnabled = false,
-                    onToggleLocationSharing = { userViewModel.toggleLocationSharing() },
-                    onBack = { navController.popBackStack() }
-                )
+                userViewModel.currentUserId?.let { it1 ->
+                    SettingsScreen(
+                        viewModel = userViewModel,
+                        userId = it1,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
             }
         }
     }

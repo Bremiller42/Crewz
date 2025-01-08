@@ -141,7 +141,7 @@ fun LoginScreen(
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
                                 val userId = auth.currentUser?.uid ?: return@addOnCompleteListener
-                                viewModel.fetchAndCacheUserDetails(userId) // Call the function from ChatViewModel
+                                viewModel.fetchUserDetails(userId) // Call the function from ChatViewModel
                                 saveCredentials(context, email.value, password.value)
                                 onLoginSuccess()
                             } else {
@@ -222,7 +222,7 @@ fun showBiometricPrompt(
                         if (task.isSuccessful) {
                             val userId = auth.currentUser?.uid
                             if (userId != null) {
-                                viewModel.fetchAndCacheUserDetails(userId) // Fetch user details
+                                viewModel.fetchUserDetails(userId) // Fetch user details
                             }
                             onLoginSuccess()
                         } else {

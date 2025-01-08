@@ -104,7 +104,7 @@ fun UploadImageScreen(
                 onClick = {
                     CoroutineScope(Dispatchers.IO).launch {
                         val uploadedUrl = uploadImage(storageReference, uri)
-                        val uploaderName = userViewModel.cachedUserFirstName ?: "Unknown User"
+                        val uploaderName = userViewModel.cachedFirstName ?: "Unknown User"
                         if (uploadedUrl != null) {
                             saveImageUrlToDatabase(uploadedUrl, uploaderName)
                             galleryViewModel.fetchImageUrls()

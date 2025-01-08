@@ -10,19 +10,27 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 
 @Composable
 fun SettingsScreen(
-    firstName: String?,
-    lastName: String?,
-    userEmail: String?,
-    isLocationSharingEnabled: Boolean,
-    onToggleLocationSharing: (Boolean) -> Unit,
+    viewModel: UserViewModel,
+    userId: String,
     onBack: () -> Unit
 ) {
+    val isLocationSharingEnabled by viewModel.isLocationSharingEnabled.collectAsState()
+
+
+    LaunchedEffect(Unit) {
+        viewModel.observeUserDetails(userId)
+    }
+
     Scaffold(
         topBar = {
             AppTopAppBar(title = "Settings", onSettingsClick = onBack)
@@ -41,11 +49,11 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "Name: $firstName $lastName",
+                text = "Name: ${viewModel.cachedFirstName} ${viewModel.cachedLastName}",
                 style = MaterialTheme.typography.bodyLarge
             )
             Text(
-                text = "Email: $userEmail",
+                text = "Email: ${viewModel.cachedEmail}",
                 style = MaterialTheme.typography.bodyLarge
             )
             Row(
@@ -59,7 +67,9 @@ fun SettingsScreen(
                 )
                 androidx.compose.material3.Switch(
                     checked = isLocationSharingEnabled,
-                    onCheckedChange = onToggleLocationSharing
+                    onCheckedChange = { isEnabled ->
+                        viewModel.toggleLocationSharing(userId, isEnabled)
+                    }
                 )
             }
         }
