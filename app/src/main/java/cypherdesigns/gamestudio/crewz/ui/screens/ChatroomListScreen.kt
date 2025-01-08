@@ -42,7 +42,7 @@ fun ChatroomListScreen(viewModel: ChatViewModel, onChatroomSelected: (String) ->
 
     var showDialog by remember { mutableStateOf(false) }
     var newChatroomName by remember { mutableStateOf("") }
-    println("Chatroom lists opened")
+
     LaunchedEffect(Unit) {
         viewModel.fetchChatrooms()
     }
