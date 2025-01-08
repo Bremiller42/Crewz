@@ -2,21 +2,26 @@ package cypherdesigns.gamestudio.crewz.ui
 
 import GalleryScreen
 import MapScreen
+import android.location.Location
 import android.net.Uri
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.google.android.gms.location.LocationServices
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
 import cypherdesigns.gamestudio.crewz.data.repository.UserRepository
 import cypherdesigns.gamestudio.crewz.ui.screens.HomeScreen
@@ -29,6 +34,7 @@ import cypherdesigns.gamestudio.crewz.ui.screens.SettingsScreen
 import cypherdesigns.gamestudio.crewz.ui.screens.UploadImageScreen
 import cypherdesigns.gamestudio.crewz.viewmodel.ChatViewModel
 import cypherdesigns.gamestudio.crewz.viewmodel.GalleryViewModel
+import cypherdesigns.gamestudio.crewz.viewmodel.LocationViewModel
 import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 import kotlinx.coroutines.flow.map
 
@@ -40,6 +46,7 @@ fun AppNavigation() {
     val chatViewModel: ChatViewModel = viewModel()
     val galleryViewModel: GalleryViewModel = viewModel()
     val userViewModel: UserViewModel = viewModel()
+
     val storageReference = FirebaseStorage.getInstance().reference
 
     Scaffold(

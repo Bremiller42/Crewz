@@ -3,8 +3,10 @@ package cypherdesigns.gamestudio.crewz.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -48,14 +50,25 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary
             )
+            Spacer(Modifier.height(4.dp))
             Text(
-                text = "Name: ${viewModel.cachedFirstName} ${viewModel.cachedLastName}",
-                style = MaterialTheme.typography.bodyLarge
+                text = "Name:",
+                style = MaterialTheme.typography.headlineSmall
             )
             Text(
-                text = "Email: ${viewModel.cachedEmail}",
-                style = MaterialTheme.typography.bodyLarge
+                text = "${viewModel.cachedFirstName} ${viewModel.cachedLastName}",
+                style = MaterialTheme.typography.headlineSmall
             )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "Email:",
+                style = MaterialTheme.typography.headlineSmall
+            )
+            Text(
+                text = "${viewModel.cachedEmail}",
+                style = MaterialTheme.typography.headlineSmall
+            )
+            Spacer(Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -63,7 +76,7 @@ fun SettingsScreen(
             ) {
                 Text(
                     text = "Location Sharing",
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.headlineSmall
                 )
                 androidx.compose.material3.Switch(
                     checked = isLocationSharingEnabled,
