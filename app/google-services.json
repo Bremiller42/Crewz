@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1095398138092",
+    "firebase_url": "https://crewz-eb0b0-default-rtdb.firebaseio.com",
+    "project_id": "crewz-eb0b0",
+    "storage_bucket": "crewz-eb0b0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1095398138092:android:36c98d34da544b367bc5c9",
+        "android_client_info": {
+          "package_name": "cypherdesigns.gamestudio.crewz"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCV-DSYFHzZuFzdVVgKfPIBnPD3IghmDZE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

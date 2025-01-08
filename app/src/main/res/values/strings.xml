@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Crewz</string>
+    <string name="hide_password">Hide password</string>
+    <string name="show_password">Show password</string>
+</resources>
