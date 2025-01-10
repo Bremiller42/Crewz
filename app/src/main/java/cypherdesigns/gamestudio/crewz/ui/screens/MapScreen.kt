@@ -1,5 +1,6 @@
 import android.Manifest
 import android.content.pm.PackageManager
+import android.location.Location
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -103,6 +104,8 @@ fun MapContent(
     val database = FirebaseDatabase.getInstance().getReference("userLocations")
 
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
+    var previousLocation by remember { mutableStateOf<LatLng?>(null) }
+
     val crewLocations = remember { mutableStateListOf<CrewMemberLocation>() }
 
     val currentUserId = userViewModel.currentUserId
@@ -120,10 +123,19 @@ fun MapContent(
                 val location = locationResult.lastLocation
                 if (location != null) {
                     val newLocation = LatLng(location.latitude, location.longitude)
+                    val distanceMoved = previousLocation?.let {
+                        val results = FloatArray(1)
+                        Location.distanceBetween(
+                            it.latitude, it.longitude,
+                            newLocation.latitude, newLocation.longitude,
+                            results
+                        )
+                        results[0] // Distance in meters
+                    } ?: Float.MAX_VALUE // If no previous location, always update
 
-                    // Avoid redundant updates if location hasn't changed significantly
-                    if (currentLocation != newLocation) {
-                        currentLocation = newLocation
+                    if (distanceMoved >= 10) {
+                        previousLocation = newLocation // Update the previous location
+                        currentLocation = newLocation // Update the current location
                         if (currentUserId != null) {
                             database.child(currentUserId) // Replace with actual user ID
                                 .setValue(
@@ -215,12 +227,6 @@ fun MapViewContent(
             zoomControlsEnabled = true
         )
     ) {
-        // Marker for the user's location
-        Marker(
-            state = MarkerState(position = currentLocation),
-            title = "You",
-            snippet = "Your current location"
-        )
 
         // Markers for crew locations
         crewLocations.forEach { crewMember ->
