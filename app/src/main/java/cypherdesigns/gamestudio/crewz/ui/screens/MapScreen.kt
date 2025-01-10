@@ -27,11 +27,12 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.maps.android.compose.*
 import cypherdesigns.gamestudio.crewz.R
+import cypherdesigns.gamestudio.crewz.ui.map.CrewMemberLocation
 import cypherdesigns.gamestudio.crewz.ui.screens.AppTopAppBar
-
+import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 
 @Composable
-fun MapScreen(onSettingsClick: () -> Unit) {
+fun MapScreen(userViewModel: UserViewModel, onSettingsClick: () -> Unit) {
     val context = LocalContext.current
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -78,7 +79,7 @@ fun MapScreen(onSettingsClick: () -> Unit) {
         }
     ) { innerPadding ->
         if (hasLocationPermission) {
-            MapContent(modifier = Modifier.padding(innerPadding))
+            MapContent(userViewModel, modifier = Modifier.padding(innerPadding))
         } else {
             Box(
                 modifier = Modifier
@@ -93,13 +94,19 @@ fun MapScreen(onSettingsClick: () -> Unit) {
 }
 
 @Composable
-fun MapContent(modifier: Modifier = Modifier) {
+fun MapContent(
+    userViewModel: UserViewModel,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     val database = FirebaseDatabase.getInstance().getReference("userLocations")
 
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
-    val crewLocations = remember { mutableStateListOf<LatLng>() }
+    val crewLocations = remember { mutableStateListOf<CrewMemberLocation>() }
+
+    val currentUserId = userViewModel.currentUserId
+    val userFirstName = userViewModel.cachedFirstName
 
     // Update current user location in Firebase
     DisposableEffect(Unit) {
@@ -112,10 +119,22 @@ fun MapContent(modifier: Modifier = Modifier) {
             override fun onLocationResult(locationResult: com.google.android.gms.location.LocationResult) {
                 val location = locationResult.lastLocation
                 if (location != null) {
-                    currentLocation = LatLng(location.latitude, location.longitude)
-                    // Update the user's location in Firebase
-                    database.child("currentUserId") // Replace with actual user ID
-                        .setValue(mapOf("latitude" to location.latitude, "longitude" to location.longitude))
+                    val newLocation = LatLng(location.latitude, location.longitude)
+
+                    // Avoid redundant updates if location hasn't changed significantly
+                    if (currentLocation != newLocation) {
+                        currentLocation = newLocation
+                        if (currentUserId != null) {
+                            database.child(currentUserId) // Replace with actual user ID
+                                .setValue(
+                                    mapOf(
+                                        "latitude" to location.latitude,
+                                        "longitude" to location.longitude,
+                                        "name" to userFirstName // Replace with actual user's name
+                                    )
+                                )
+                        }
+                    }
                 }
             }
         }
@@ -132,23 +151,28 @@ fun MapContent(modifier: Modifier = Modifier) {
     }
 
     // Listen for crew locations in Firebase
-    LaunchedEffect(Unit) {
-        database.addValueEventListener(object : ValueEventListener {
+    DisposableEffect(Unit) {
+        val crewListener = database.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 crewLocations.clear()
                 snapshot.children.forEach { child ->
+                    val name = child.child("name").getValue(String::class.java) ?: "Unknown"
                     val lat = child.child("latitude").getValue(Double::class.java)
                     val lng = child.child("longitude").getValue(Double::class.java)
                     if (lat != null && lng != null) {
-                        crewLocations.add(LatLng(lat, lng))
+                        crewLocations.add(CrewMemberLocation(name, LatLng(lat, lng)))
                     }
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(context, "Failed to fetch crew locations: ${error.message}", Toast.LENGTH_SHORT).show()
+                println("Failed to fetch crew locations: ${error.message}")
             }
         })
+
+        onDispose {
+            database.removeEventListener(crewListener)
+        }
     }
 
     if (currentLocation != null) {
@@ -170,7 +194,7 @@ fun MapContent(modifier: Modifier = Modifier) {
 @Composable
 fun MapViewContent(
     currentLocation: LatLng,
-    crewLocations: List<LatLng>,
+    crewLocations: List<CrewMemberLocation>,
     modifier: Modifier = Modifier
 ) {
     val cameraPositionState = rememberCameraPositionState {
@@ -199,10 +223,10 @@ fun MapViewContent(
         )
 
         // Markers for crew locations
-        crewLocations.forEach { location ->
+        crewLocations.forEach { crewMember ->
             Marker(
-                state = MarkerState(position = location),
-                title = "Crew Member",
+                state = MarkerState(position = crewMember.location),
+                title = crewMember.name,
                 snippet = "Location shared by crew"
             )
         }
