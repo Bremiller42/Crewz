@@ -94,7 +94,7 @@ fun AppNavigation() {
                     onSettingsClick = {navController.navigate("settings")})
             }
             composable("map") {
-                MapScreen(
+                MapScreen(userViewModel = userViewModel,
                     onSettingsClick = {navController.navigate("settings")}) // Placeholder
             }
             composable("gallery") {
