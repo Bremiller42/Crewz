@@ -7,17 +7,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.GoogleMapOptions
@@ -30,7 +25,6 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.maps.android.compose.*
 import cypherdesigns.gamestudio.crewz.R
-import cypherdesigns.gamestudio.crewz.data.utilities.getBitmapDescriptorFromVector
 import cypherdesigns.gamestudio.crewz.ui.map.CrewMemberLocation
 import cypherdesigns.gamestudio.crewz.ui.screens.AppTopAppBar
 import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
@@ -113,16 +107,17 @@ fun MapContent(
 
     val currentUserId = userViewModel.currentUserId
     val userFirstName = userViewModel.cachedFirstName
-    val selectedHue by userViewModel.markerColorHue.collectAsState() // Retrieve hue from ViewModel
+    val selectedHue by userViewModel.markerColorName.collectAsState() // Retrieve hue from ViewModel
 
-    var isFollowingUser by remember{ mutableStateOf(true) }
+    println("Selected Hue: $selectedHue")
+    var isFollowingUser by remember { mutableStateOf(true) }
     val cameraPositionState = rememberCameraPositionState()
 
-    // Update current user location in Firebase
+    // **Update current user location in Firebase**
     DisposableEffect(Unit) {
         val locationRequest = com.google.android.gms.location.LocationRequest.Builder(
             com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
-            5000L // Request updates every 5 seconds
+            2500L // Request updates every 2.5 seconds
         ).build()
 
         val locationCallback = object : com.google.android.gms.location.LocationCallback() {
@@ -144,13 +139,17 @@ fun MapContent(
                         previousLocation = newLocation // Update the previous location
                         currentLocation = newLocation // Update the current location
                         isFollowingUser = true
+
+                        // Retrieve selected color dynamically from UserViewModel
+                        val selectedColor = userViewModel.markerColorName.value
+
                         if (currentUserId != null) {
                             database.child(currentUserId).setValue(
                                 mapOf(
                                     "latitude" to location.latitude,
                                     "longitude" to location.longitude,
                                     "name" to userFirstName,
-                                    "colorHue" to selectedHue // Store the user's chosen hue (0-360)
+                                    "markerColor" to selectedColor // Dynamic color from settings
                                 )
                             )
                         }
@@ -177,7 +176,7 @@ fun MapContent(
         }
     }
 
-    // Listen for crew locations in Firebase
+    // **Listen for crew locations in Firebase**
     DisposableEffect(Unit) {
         val crewListener = database.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -186,12 +185,26 @@ fun MapContent(
                     val name = child.child("name").getValue(String::class.java) ?: "Unknown"
                     val lat = child.child("latitude").getValue(Double::class.java)
                     val lng = child.child("longitude").getValue(Double::class.java)
-                    val hue = child.child("colorHue").getValue(Float::class.java) ?: 120f // Assume stored as hue (0-360)
-                    println("Setting hue to $hue")
-                    val color = Color.hsv(hue, 1f, 1f) // Convert hue to Color
+                    val markerColor = child.child("markerColor").getValue(String::class.java) ?: "red"
+
+                    // Map the markerColor string to a drawable resource ID
+                    val vectorResId = when (markerColor) {
+                        "red" -> R.drawable.ic_crew_marker_red
+                        "orange" -> R.drawable.ic_crew_marker_orange
+                        "yellow" -> R.drawable.ic_crew_marker_yellow
+                        "green" -> R.drawable.ic_crew_marker_green
+                        "blue" -> R.drawable.ic_crew_marker_blue
+                        "cyan" -> R.drawable.ic_crew_marker_cyan
+                        "magenta" -> R.drawable.ic_crew_marker_magenta
+                        "purple" -> R.drawable.ic_crew_marker_purple
+                        "black" -> R.drawable.ic_crew_marker_black
+                        "gray" -> R.drawable.ic_crew_marker_gray
+                        "white" -> R.drawable.ic_crew_marker_white
+                        else -> R.drawable.ic_crew_marker_red // Default to red if unknown
+                    }
 
                     if (lat != null && lng != null) {
-                        crewLocations.add(CrewMemberLocation(name, LatLng(lat, lng), color))
+                        crewLocations.add(CrewMemberLocation(name, LatLng(lat, lng), vectorResId))
                     }
                 }
             }
@@ -201,11 +214,11 @@ fun MapContent(
             }
         })
 
+
         onDispose {
             database.removeEventListener(crewListener)
         }
     }
-
 
     if (currentLocation != null) {
         MapViewContent(
@@ -222,6 +235,7 @@ fun MapContent(
         }
     }
 }
+
 
 @Composable
 fun MapViewContent(
@@ -252,19 +266,17 @@ fun MapViewContent(
         )
     ) {
 
-        // Markers for crew locations
         crewLocations.forEach { crewMember ->
-            val markerIcon = getBitmapDescriptorFromVector(
-                context = LocalContext.current,
-                vectorResId = R.drawable.ic_crew_marker,
-                tintColor = crewMember.markerColor
-            )
+            // Directly use vectorResId as it's already an Int
+            val markerIcon = vectorToBitmapDescriptor(context, crewMember.vectorResId)
 
             Marker(
                 state = MarkerState(position = crewMember.location),
                 title = crewMember.name,
                 icon = markerIcon
             )
+
         }
+
     }
 }

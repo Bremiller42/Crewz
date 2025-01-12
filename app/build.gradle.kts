@@ -78,6 +78,9 @@ dependencies {
     implementation("com.google.maps.android:maps-compose:2.11.2")
     implementation("com.google.android.gms:play-services-maps:19.0.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("com.google.maps.android:maps-ktx:5.1.1")
+    implementation("com.google.maps.android:maps-utils-ktx:5.1.1")
+
 
     // Biometrics
     implementation("androidx.biometric:biometric:1.1.0")

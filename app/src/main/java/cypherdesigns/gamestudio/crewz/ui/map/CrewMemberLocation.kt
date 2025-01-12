@@ -6,5 +6,5 @@ import com.google.android.gms.maps.model.LatLng
 data class CrewMemberLocation(
     val name: String,
     val location: LatLng,
-    val markerColor: Color
+    val vectorResId: Int
 )

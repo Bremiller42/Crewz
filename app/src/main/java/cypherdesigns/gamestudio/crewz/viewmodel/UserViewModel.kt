@@ -21,8 +21,9 @@ class UserViewModel: ViewModel() {
     private val _isLocationSharingEnabled = MutableStateFlow(false)
     val isLocationSharingEnabled = _isLocationSharingEnabled.asStateFlow()
 
-    private val _markerColorHue = MutableStateFlow(0f)
-    val markerColorHue = _markerColorHue.asStateFlow()
+    private val _markerColorName = MutableStateFlow("red") // Default to red
+    val markerColorName = _markerColorName.asStateFlow()
+
 
 
     fun fetchUserDetails(userId: String) {
@@ -36,14 +37,16 @@ class UserViewModel: ViewModel() {
     }
 
     fun observeMarkerColor(userId: String) {
-        userRepository.observeMarkerColor(userId) { hue ->
-            _markerColorHue.value = hue
+        userRepository.observeMarkerColor(userId) { colorName ->
+            _markerColorName.value = colorName
         }
     }
 
-    fun updateMarkerColor(userId: String, hue: Float) {
-        userRepository.updateMarkerColor(userId, hue)
+
+    fun updateMarkerColor(userId: String, colorName: String) {
+        userRepository.updateMarkerColor(userId, colorName)
     }
+
 
     fun toggleLocationSharing(userId: String, isEnabled: Boolean) {
         userRepository.updateLocationSharing(userId, isEnabled) { success ->

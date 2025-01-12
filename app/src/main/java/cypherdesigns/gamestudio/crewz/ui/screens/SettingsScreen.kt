@@ -1,9 +1,12 @@
 package cypherdesigns.gamestudio.crewz.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -31,7 +37,7 @@ fun SettingsScreen(
     onBack: () -> Unit
 ) {
     val isLocationSharingEnabled by viewModel.isLocationSharingEnabled.collectAsState()
-    val selectedHue by viewModel.markerColorHue.collectAsState()
+    val selectedColor by viewModel.markerColorName.collectAsState() // Observe selected color name
 
 
     LaunchedEffect(Unit) {
@@ -92,51 +98,63 @@ fun SettingsScreen(
                 )
             }
             // Color Picker with Slider
-            Text("Marker Color:")
+            Text(
+                text = "Marker Color:",
+                style = MaterialTheme.typography.headlineSmall
+            )
+
             ColorPicker(
-                selectedHue = selectedHue,
-                onColorSelected = { hue ->
-                    viewModel.updateMarkerColor(userId, hue)
+                currentColor = selectedColor,
+                onColorSelected = { colorName ->
+                    viewModel.updateMarkerColor(userId, colorName) // Save color selection
                 }
             )
         }
     }
 }
-
 @Composable
 fun ColorPicker(
-    selectedHue: Float,
-    onColorSelected: (Float) -> Unit
+    currentColor: String,
+    onColorSelected: (String) -> Unit
 ) {
-    Column(
+    val colors = listOf(
+        "red", "orange", "yellow", "green", "cyan",
+        "blue", "purple", "magenta", "white", "gray", "black"
+    )
+
+    LazyRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalArrangement = Arrangement.spacedBy(16.dp), // Add spacing between items
+        contentPadding = PaddingValues(horizontal = 16.dp) // Add padding to the start and end
     ) {
-        // Display the current selected color
-        val selectedColor = Color.hsv(selectedHue, 1f, 1f)
-        Box(
-            modifier = Modifier
-                .size(60.dp)
-                .background(selectedColor, androidx.compose.foundation.shape.CircleShape)
-        )
+        items(colors) { colorName ->
+            val colorResId = when (colorName) {
+                "red" -> Color.Red
+                "orange" -> Color(0xFFFFA500) // Orange
+                "yellow" -> Color.Yellow
+                "green" -> Color.Green
+                "cyan" -> Color.Cyan
+                "blue" -> Color.Blue
+                "purple" -> Color(0xFF800080) // Purple
+                "magenta" -> Color.Magenta
+                "white" -> Color.White
+                "gray" -> Color.Gray
+                "black" -> Color.Black
+                else -> Color.Red
+            }
 
-        Spacer(Modifier.height(8.dp))
-
-        // Hue Slider
-        androidx.compose.material3.Slider(
-            value = selectedHue,
-            onValueChange = { hue -> onColorSelected(hue) },
-            valueRange = 0f..360f,
-            colors = androidx.compose.material3.SliderDefaults.colors(
-                thumbColor = selectedColor,
-                activeTrackColor = selectedColor,
-                inactiveTrackColor = selectedColor.copy(alpha = 0.3f)
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(colorResId, shape = CircleShape)
+                    .border(
+                        width = 2.dp,
+                        color = if (colorName == currentColor) Color.Black else Color.Transparent,
+                        shape = CircleShape
+                    )
+                    .clickable { onColorSelected(colorName) }
             )
-        )
-
-        Text(
-            text = "Hue: ${selectedHue.toInt()}°",
-            style = MaterialTheme.typography.bodySmall
-        )
+        }
     }
 }
+

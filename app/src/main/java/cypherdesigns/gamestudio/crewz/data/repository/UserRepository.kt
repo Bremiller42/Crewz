@@ -19,12 +19,12 @@ class UserRepository {
     var cachedLocationSharingEnabled: Boolean = false
         private set
 
-    fun observeMarkerColor(userId: String, onColorUpdated: (Float) -> Unit) {
-        database.child(userId).child("colorHue")
+    fun observeMarkerColor(userId: String, onColorUpdated: (String) -> Unit) {
+        database.child(userId).child("markerColor")
             .addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    val hue = snapshot.getValue(Float::class.java) ?: 0f
-                    onColorUpdated(hue)
+                    val colorName = snapshot.getValue(String::class.java) ?: "red"
+                    onColorUpdated(colorName)
                 }
 
                 override fun onCancelled(error: DatabaseError) {
@@ -33,15 +33,18 @@ class UserRepository {
             })
     }
 
-    fun updateMarkerColor(userId: String, hue: Float) {
-        database.child(userId).child("colorHue").setValue(hue)
+
+    fun updateMarkerColor(userId: String, colorName: String) {
+        database.child(userId).child("markerColor").setValue(colorName)
             .addOnSuccessListener {
-                println("Marker color updated to hue: $hue")
+                println("Marker color updated to: $colorName")
             }
             .addOnFailureListener { exception ->
                 println("Failed to update marker color: ${exception.message}")
             }
     }
+
+
 
     fun fetchAndCacheUserDetails(userId: String) {
         println("Fetching user details from Firestore for userId: $userId")
