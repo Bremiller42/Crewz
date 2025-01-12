@@ -1,9 +1,14 @@
 package cypherdesigns.gamestudio.crewz.data.repository
 
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.FirebaseFirestore
 
 class UserRepository {
-    val firestore = FirebaseFirestore.getInstance()
+    private val firestore = FirebaseFirestore.getInstance()
+    private val database = FirebaseDatabase.getInstance().getReference("userLocations")
 
     var cachedUserFirstName: String? = null
         private set
@@ -13,6 +18,30 @@ class UserRepository {
         private set
     var cachedLocationSharingEnabled: Boolean = false
         private set
+
+    fun observeMarkerColor(userId: String, onColorUpdated: (Float) -> Unit) {
+        database.child(userId).child("colorHue")
+            .addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val hue = snapshot.getValue(Float::class.java) ?: 0f
+                    onColorUpdated(hue)
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    println("Error observing marker color: ${error.message}")
+                }
+            })
+    }
+
+    fun updateMarkerColor(userId: String, hue: Float) {
+        database.child(userId).child("colorHue").setValue(hue)
+            .addOnSuccessListener {
+                println("Marker color updated to hue: $hue")
+            }
+            .addOnFailureListener { exception ->
+                println("Failed to update marker color: ${exception.message}")
+            }
+    }
 
     fun fetchAndCacheUserDetails(userId: String) {
         println("Fetching user details from Firestore for userId: $userId")
