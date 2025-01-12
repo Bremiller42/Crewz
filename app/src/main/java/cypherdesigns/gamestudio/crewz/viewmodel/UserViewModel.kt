@@ -42,6 +42,9 @@ class UserViewModel: ViewModel() {
         }
     }
 
+    fun setMarkerColor(colorName: String){
+        _markerColorName.value = colorName
+    }
 
     fun updateMarkerColor(userId: String, colorName: String) {
         userRepository.updateMarkerColor(userId, colorName)

@@ -140,16 +140,25 @@ fun MapContent(
                         currentLocation = newLocation // Update the current location
                         isFollowingUser = true
 
-                        // Retrieve selected color dynamically from UserViewModel
-                        val selectedColor = userViewModel.markerColorName.value
-
                         if (currentUserId != null) {
+                            // Fetch the last known marker color from Firebase
+                            database.child(currentUserId).child("markerColor").get()
+                                .addOnSuccessListener { snapshot ->
+                                    val lastKnownColor = snapshot.getValue(String::class.java) ?: "red"
+                                    userViewModel.setMarkerColor(lastKnownColor) // Update the ViewModel
+                                }
+                                .addOnFailureListener {
+                                    println("Failed to fetch last known color: ${it.message}")
+                                }
+
+                            // Update Firebase with the current user location and marker color
+                            val selectedColor = userViewModel.markerColorName.value
                             database.child(currentUserId).setValue(
                                 mapOf(
                                     "latitude" to location.latitude,
                                     "longitude" to location.longitude,
                                     "name" to userFirstName,
-                                    "markerColor" to selectedColor // Dynamic color from settings
+                                    "markerColor" to selectedColor // Dynamic color from ViewModel
                                 )
                             )
                         }
@@ -245,7 +254,7 @@ fun MapViewContent(
 ) {
     val context = LocalContext.current
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(currentLocation, 15f)
+        position = CameraPosition.fromLatLngZoom(currentLocation, 20f)
     }
 
     GoogleMap(
@@ -257,6 +266,9 @@ fun MapViewContent(
         properties = MapProperties(
             isMyLocationEnabled = true,
             isTrafficEnabled = true,
+            mapType = MapType.NORMAL,
+            minZoomPreference = 1f, // Minimum zoom level (world view)
+            maxZoomPreference = 20f // Maximum zoom level
 
         ),
         uiSettings = MapUiSettings(
