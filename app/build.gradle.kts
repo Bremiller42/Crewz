@@ -58,35 +58,42 @@ secrets {
 
 dependencies {
     // JP Compose:
-    implementation("androidx.compose.ui:ui:1.7.6")
-    implementation("androidx.compose.ui:ui-tooling-preview:1.7.6")
-    implementation("androidx.compose.material:material:1.7.6")
-    implementation("androidx.navigation:navigation-compose:2.8.5")
+    implementation(libs.ui)
+    implementation(libs.ui.tooling.preview)
+    implementation(libs.androidx.material)
+    implementation(libs.androidx.navigation.compose)
 
     // Firebase
-    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
-    implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.firebase:firebase-database-ktx")
-    implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.firebase:firebase-storage-ktx")
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth.ktx)
+    implementation(libs.firebase.database.ktx)
+    implementation(libs.firebase.firestore.ktx)
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.storage.ktx)
 
     // Coil for image loading
-    implementation("io.coil-kt:coil-compose:2.2.2")
+    implementation(libs.coil.compose)
 
     // GMaps
-    implementation("com.google.maps.android:maps-compose:2.11.2")
-    implementation("com.google.android.gms:play-services-maps:19.0.0")
-    implementation("com.google.android.gms:play-services-location:21.3.0")
-    implementation("com.google.maps.android:maps-ktx:5.1.1")
-    implementation("com.google.maps.android:maps-utils-ktx:5.1.1")
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.base)
+
+    implementation(libs.play.services.maps)
+    implementation(libs.play.services.location)
+    implementation(libs.maps.ktx)
+    implementation(libs.maps.utils.ktx)
 
 
     // Biometrics
-    implementation("androidx.biometric:biometric:1.1.0")
+    implementation(libs.androidx.biometric)
 
     // Google Signin
-    implementation("com.google.android.gms:play-services-auth:21.3.0") // Example for Google Sign-In
+    implementation(libs.play.services.auth) // Example for Google Sign-In
+
+    //Flogger
+    implementation(libs.flogger)
+    implementation(libs.flogger.slf4j.backend)
+    implementation(libs.flogger.system.backend)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

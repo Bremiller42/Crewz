@@ -7,16 +7,20 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.FabPosition
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.GoogleMapOptions
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.database.FirebaseDatabase
@@ -63,18 +67,20 @@ fun MapScreen(userViewModel: UserViewModel, onSettingsClick: () -> Unit) {
 
     Scaffold(
         topBar = { AppTopAppBar(title = "Crew Map", onSettingsClick = onSettingsClick) },
-//        floatingActionButton = {
-//            FloatingActionButton(
-//                onClick = { /* Placeholder for navigation action */ },
-//                containerColor = MaterialTheme.colorScheme.primary
-//            ) {
-//                Icon(
-//                    painter = painterResource(id = R.drawable.ic_navigation),
-//                    contentDescription = "Navigate",
-//                    tint = MaterialTheme.colorScheme.background
-//                )
-//            }
-//        }
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { /* Placeholder for navigation action */ },
+                containerColor = MaterialTheme.colorScheme.primary,
+
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_navigation),
+                    contentDescription = "Navigate",
+                    tint = MaterialTheme.colorScheme.background
+                )
+            }
+        },
+        floatingActionButtonPosition = FabPosition.Start
     ) { innerPadding ->
         if (hasLocationPermission) {
             MapContent(userViewModel, modifier = Modifier.padding(innerPadding))
@@ -107,6 +113,7 @@ fun MapContent(
 
     val currentUserId = userViewModel.currentUserId
     val userFirstName = userViewModel.cachedFirstName
+    val userLocationEnabled = userViewModel.cachedLocationSharingEnabled
     val selectedHue by userViewModel.markerColorName.collectAsState() // Retrieve hue from ViewModel
 
     println("Selected Hue: $selectedHue")
@@ -141,16 +148,6 @@ fun MapContent(
                         isFollowingUser = true
 
                         if (currentUserId != null) {
-                            // Fetch the last known marker color from Firebase
-                            database.child(currentUserId).child("markerColor").get()
-                                .addOnSuccessListener { snapshot ->
-                                    val lastKnownColor = snapshot.getValue(String::class.java) ?: "red"
-                                    userViewModel.setMarkerColor(lastKnownColor) // Update the ViewModel
-                                }
-                                .addOnFailureListener {
-                                    println("Failed to fetch last known color: ${it.message}")
-                                }
-
                             // Update Firebase with the current user location and marker color
                             val selectedColor = userViewModel.markerColorName.value
                             database.child(currentUserId).setValue(
@@ -158,7 +155,8 @@ fun MapContent(
                                     "latitude" to location.latitude,
                                     "longitude" to location.longitude,
                                     "name" to userFirstName,
-                                    "markerColor" to selectedColor // Dynamic color from ViewModel
+                                    "markerColor" to selectedColor,
+                                    "locationSharingEnabled" to userLocationEnabled // New flag
                                 )
                             )
                         }
@@ -191,29 +189,33 @@ fun MapContent(
             override fun onDataChange(snapshot: DataSnapshot) {
                 crewLocations.clear()
                 snapshot.children.forEach { child ->
-                    val name = child.child("name").getValue(String::class.java) ?: "Unknown"
-                    val lat = child.child("latitude").getValue(Double::class.java)
-                    val lng = child.child("longitude").getValue(Double::class.java)
-                    val markerColor = child.child("markerColor").getValue(String::class.java) ?: "red"
+                    val isLocationSharingEnabled =
+                        child.child("locationSharingEnabled").getValue(Boolean::class.java) ?: false
+                    if (isLocationSharingEnabled) {
+                        val name = child.child("name").getValue(String::class.java) ?: "Unknown"
+                        val lat = child.child("latitude").getValue(Double::class.java)
+                        val lng = child.child("longitude").getValue(Double::class.java)
+                        val markerColor = child.child("markerColor").getValue(String::class.java) ?: "red"
 
-                    // Map the markerColor string to a drawable resource ID
-                    val vectorResId = when (markerColor) {
-                        "red" -> R.drawable.ic_crew_marker_red
-                        "orange" -> R.drawable.ic_crew_marker_orange
-                        "yellow" -> R.drawable.ic_crew_marker_yellow
-                        "green" -> R.drawable.ic_crew_marker_green
-                        "blue" -> R.drawable.ic_crew_marker_blue
-                        "cyan" -> R.drawable.ic_crew_marker_cyan
-                        "magenta" -> R.drawable.ic_crew_marker_magenta
-                        "purple" -> R.drawable.ic_crew_marker_purple
-                        "black" -> R.drawable.ic_crew_marker_black
-                        "gray" -> R.drawable.ic_crew_marker_gray
-                        "white" -> R.drawable.ic_crew_marker_white
-                        else -> R.drawable.ic_crew_marker_red // Default to red if unknown
-                    }
+                        // Map the markerColor string to a drawable resource ID
+                        val vectorResId = when (markerColor) {
+                            "red" -> R.drawable.ic_crew_marker_red
+                            "orange" -> R.drawable.ic_crew_marker_orange
+                            "yellow" -> R.drawable.ic_crew_marker_yellow
+                            "green" -> R.drawable.ic_crew_marker_green
+                            "blue" -> R.drawable.ic_crew_marker_blue
+                            "cyan" -> R.drawable.ic_crew_marker_cyan
+                            "magenta" -> R.drawable.ic_crew_marker_magenta
+                            "purple" -> R.drawable.ic_crew_marker_purple
+                            "black" -> R.drawable.ic_crew_marker_black
+                            "gray" -> R.drawable.ic_crew_marker_gray
+                            "white" -> R.drawable.ic_crew_marker_white
+                            else -> R.drawable.ic_crew_marker_red // Default to red if unknown
+                        }
 
-                    if (lat != null && lng != null) {
-                        crewLocations.add(CrewMemberLocation(name, LatLng(lat, lng), vectorResId))
+                        if (lat != null && lng != null) {
+                            crewLocations.add(CrewMemberLocation(name, LatLng(lat, lng), vectorResId))
+                        }
                     }
                 }
             }
@@ -222,7 +224,6 @@ fun MapContent(
                 println("Failed to fetch crew locations: ${error.message}")
             }
         })
-
 
         onDispose {
             database.removeEventListener(crewListener)
@@ -246,6 +247,7 @@ fun MapContent(
 }
 
 
+
 @Composable
 fun MapViewContent(
     currentLocation: LatLng,
@@ -254,7 +256,7 @@ fun MapViewContent(
 ) {
     val context = LocalContext.current
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(currentLocation, 20f)
+        position = CameraPosition.fromLatLngZoom(currentLocation, 15f)
     }
 
     GoogleMap(
@@ -267,7 +269,7 @@ fun MapViewContent(
             isMyLocationEnabled = true,
             isTrafficEnabled = true,
             mapType = MapType.NORMAL,
-            minZoomPreference = 1f, // Minimum zoom level (world view)
+            minZoomPreference = 3.0f, // Minimum zoom level (world view)
             maxZoomPreference = 20f // Maximum zoom level
 
         ),

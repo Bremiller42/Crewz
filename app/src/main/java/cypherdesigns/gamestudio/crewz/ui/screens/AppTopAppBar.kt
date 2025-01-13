@@ -17,8 +17,8 @@ import cypherdesigns.gamestudio.crewz.R
 @Composable
 fun AppTopAppBar(title: String, onSettingsClick: ()-> Unit) {
     androidx.compose.material.TopAppBar(
-        backgroundColor = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.background
+        backgroundColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.primary
     ) {
         Box(
             modifier = Modifier.fillMaxWidth(),
@@ -27,7 +27,7 @@ fun AppTopAppBar(title: String, onSettingsClick: ()-> Unit) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.background
+                color = MaterialTheme.colorScheme.primary
             )
             IconButton(
                 onClick = onSettingsClick,
@@ -37,13 +37,13 @@ fun AppTopAppBar(title: String, onSettingsClick: ()-> Unit) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_settings),
                         contentDescription = "Settings",
-                        tint = MaterialTheme.colorScheme.background
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 } else {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.background
+                        tint = MaterialTheme.colorScheme.primary
 
                     )
                 }

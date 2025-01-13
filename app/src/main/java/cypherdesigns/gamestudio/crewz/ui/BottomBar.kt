@@ -18,12 +18,12 @@ fun BottomBar(navController: NavController) {
         NavigationItem.Chat,
         NavigationItem.Gallery
     )
-    BottomNavigation(backgroundColor = MaterialTheme.colorScheme.primary) {
+    BottomNavigation(backgroundColor = MaterialTheme.colorScheme.background) {
         val currentRoute = navController.currentBackStackEntry?.destination?.route
         items.forEach { item ->
             BottomNavigationItem(
-                icon = { Icon(painterResource(id = item.icon), contentDescription = item.label, tint = MaterialTheme.colorScheme.background) },
-                label = { Text(item.label, color = MaterialTheme.colorScheme.background) },
+                icon = { Icon(painterResource(id = item.icon), contentDescription = item.label, tint = MaterialTheme.colorScheme.primary) },
+                label = { Text(item.label, color = MaterialTheme.colorScheme.primary) },
                 selected = currentRoute == item.route,
                 onClick = {
                     if (currentRoute != item.route) {

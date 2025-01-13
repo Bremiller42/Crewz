@@ -42,7 +42,7 @@ fun SettingsScreen(
 
     LaunchedEffect(Unit) {
         viewModel.observeUserDetails(userId)
-        viewModel.observeMarkerColor(userId)
+        viewModel.observeMarkerColorAndLocationSharing(userId)
     }
 
     Scaffold(

@@ -1,5 +1,6 @@
 package cypherdesigns.gamestudio.crewz.ui.login
 
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,7 +22,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
-import cypherdesigns.gamestudio.crewz.viewmodel.ChatViewModel
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.biometric.BiometricPrompt
@@ -41,7 +41,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme.colorScheme
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -64,16 +66,40 @@ fun LoginScreen(
     val auth = FirebaseAuth.getInstance()
     var isPasswordVisible by remember { mutableStateOf(false) }
 
-    val textFieldColors = TextFieldDefaults.outlinedTextFieldColors(
-        focusedBorderColor = colorScheme.secondary,
-        unfocusedBorderColor = colorScheme.primary,
-        containerColor = colorScheme.background,
-        focusedLabelColor = colorScheme.primary)
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = colorScheme.primary,
+        unfocusedTextColor = colorScheme.secondary,
+        focusedLabelColor = colorScheme.primary,
+        unfocusedLabelColor = colorScheme.secondary,
+        focusedContainerColor = colorScheme.background,
+        unfocusedContainerColor = colorScheme.background,
+        focusedTrailingIconColor = colorScheme.primary,
+        unfocusedLeadingIconColor = colorScheme.primary,
+        focusedBorderColor = colorScheme.primary,
+        unfocusedBorderColor = colorScheme.secondary
+    )
 
     val buttonColors = ButtonDefaults.buttonColors(
         containerColor = colorScheme.primary,
         contentColor = Color.Black
     )
+
+    // Automatically trigger biometric prompt if credentials exist
+    LaunchedEffect(Unit) {
+        val (storedEmail, storedPassword) = getCredentials(context)
+        if (storedEmail != null && storedPassword != null) {
+            showBiometricPrompt(
+                activity = context as FragmentActivity,
+                onLoginSuccess = onLoginSuccess,
+                onLoginFailure = { error ->
+                    Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                },
+                viewModel = viewModel,
+                context = context
+            )
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -127,7 +153,11 @@ fun LoginScreen(
                     }
 
                     IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                        Icon(painter = image, contentDescription = description, tint = colorScheme.primary)
+                        Icon(
+                            painter = image,
+                            contentDescription = description,
+                            tint = colorScheme.primary
+                        )
                     }
                 },
                 keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Password)
@@ -141,7 +171,7 @@ fun LoginScreen(
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
                                 val userId = auth.currentUser?.uid ?: return@addOnCompleteListener
-                                viewModel.fetchUserDetails(userId) // Call the function from ChatViewModel
+                                viewModel.fetchUserDetails(userId) // Fetch user details
                                 saveCredentials(context, email.value, password.value)
                                 onLoginSuccess()
                             } else {
@@ -159,6 +189,8 @@ fun LoginScreen(
                 Text(text = "Login")
             }
 
+            Spacer(modifier = Modifier.height(8.dp))
+
             Button(
                 onClick = {
                     showBiometricPrompt(
@@ -166,22 +198,20 @@ fun LoginScreen(
                         onLoginSuccess = {
                             Toast.makeText(context, "Authentication Succeeded", Toast.LENGTH_SHORT)
                                 .show()
-                            // Navigate to the next screen or perform any post-login actions
                             onLoginSuccess()
                         },
                         onLoginFailure = { error ->
                             Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
                         },
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        context = context
                     )
                 },
                 colors = buttonColors,
                 modifier = Modifier.fillMaxWidth()
-
             ) {
                 Text("Biometric Login")
             }
-
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -201,10 +231,13 @@ fun showBiometricPrompt(
     activity: FragmentActivity,
     onLoginSuccess: () -> Unit,
     onLoginFailure: (String) -> Unit,
-    viewModel: UserViewModel
+    viewModel: UserViewModel,
+    context: Context
 ) {
     // Executor for handling the prompt's callback
     val executor: Executor = activity.mainExecutor
+
+    val (storedEmail, storedPassword) = getCredentials(context)
 
     // Callback to handle authentication events
     val biometricPromptCallback = object : BiometricPrompt.AuthenticationCallback() {
@@ -251,7 +284,7 @@ fun showBiometricPrompt(
     // Create the prompt info
     val promptInfo = BiometricPrompt.PromptInfo.Builder()
         .setTitle("Biometric Login")
-        .setSubtitle("Log in using biometric credentials")
+        .setSubtitle("Log in using as $storedEmail")
         .setNegativeButtonText("Cancel")
         .build()
 

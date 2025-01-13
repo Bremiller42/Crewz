@@ -20,7 +20,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme.colorScheme
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,11 +56,17 @@ fun RegisterScreen(onRegisterSuccess: () -> Unit, onBackToLogin: () -> Unit) {
     val firestore = FirebaseFirestore.getInstance()
     var isPasswordVisible by remember { mutableStateOf(false) }
 
-    val textFieldColors = TextFieldDefaults.outlinedTextFieldColors(
-        focusedBorderColor = colorScheme.secondary,
-        unfocusedBorderColor = colorScheme.primary,
-        containerColor = colorScheme.background,
-        focusedLabelColor = colorScheme.primary
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = colorScheme.primary,
+        unfocusedTextColor = colorScheme.secondary,
+        focusedLabelColor = colorScheme.primary,
+        unfocusedLabelColor = colorScheme.secondary,
+        focusedContainerColor = colorScheme.background,
+        unfocusedContainerColor = colorScheme.background,
+        focusedTrailingIconColor = colorScheme.primary,
+        unfocusedLeadingIconColor = colorScheme.primary,
+        focusedBorderColor = colorScheme.primary,
+        unfocusedBorderColor = colorScheme.secondary
     )
 
     val buttonColors = ButtonDefaults.buttonColors(
