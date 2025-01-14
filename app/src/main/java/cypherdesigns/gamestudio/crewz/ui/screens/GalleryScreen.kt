@@ -12,7 +12,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material.Scaffold
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,17 +30,25 @@ import cypherdesigns.gamestudio.crewz.viewmodel.GalleryViewModel
 @Composable
 fun GalleryScreen(
     viewModel: GalleryViewModel,
+    crewId: String, // Pass the crewId to scope data fetching
     onNavigateToUploadScreen: () -> Unit,
     onImageClick: (ImageData) -> Unit, // Pass the entire ImageData object on click
     onSettingsClick: () -> Unit
 ) {
-    val imageDataList = viewModel.imageUrls.collectAsState().value // List of ImageData
+    val imageDataList = viewModel.imageUrls.collectAsState().value
 
-    LaunchedEffect(Unit) {
-        viewModel.fetchImageUrls()
+    // Fetch images for the specific crew on screen load
+    LaunchedEffect(crewId) {
+        viewModel.fetchImages(crewId)
     }
+
     Scaffold(
-        topBar = { AppTopAppBar(title = "Crew Gallery", onSettingsClick = onSettingsClick ) },
+        topBar = {
+            AppTopAppBar(
+                title = "Crew Gallery",
+                onSettingsClick = onSettingsClick
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onNavigateToUploadScreen,
@@ -60,32 +68,35 @@ fun GalleryScreen(
                 .padding(paddingValues)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(8.dp),
-            modifier = Modifier
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            items(imageDataList) { imageData ->
-                Column(modifier = Modifier
-                    .clickable { onImageClick(imageData) }
-                    .background(MaterialTheme.colorScheme.background)) {
-                    Text(
-                        text = "Uploaded by: ${imageData.uploadedBy}",
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                    AsyncImage(
-                        model = imageData.url,
-                        contentDescription = "Gallery Image",
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(8.dp),
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .background(MaterialTheme.colorScheme.background)
+            ) {
+                items(imageDataList) { imageData ->
+                    Column(
                         modifier = Modifier
-                            .aspectRatio(1f)
-                            .padding(4.dp),
-                        contentScale = ContentScale.Crop
-                    )
+                            .clickable { onImageClick(imageData) }
+                            .background(MaterialTheme.colorScheme.background)
+                    ) {
+                        Text(
+                            text = "Uploaded by: ${imageData.uploadedBy}",
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                        AsyncImage(
+                            model = imageData.url,
+                            contentDescription = "Gallery Image",
+                            modifier = Modifier
+                                .aspectRatio(1f)
+                                .padding(4.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 }
             }
         }
     }
-}
 }

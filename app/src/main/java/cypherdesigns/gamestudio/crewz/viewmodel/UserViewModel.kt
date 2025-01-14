@@ -8,7 +8,16 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class UserViewModel : ViewModel() {
     private val userRepository = UserRepository()
+
     val currentUserId: String? = FirebaseAuth.getInstance().currentUser?.uid
+
+    private val _currentCrewId = MutableStateFlow<String?>(null)
+    val currentCrewId = _currentCrewId.asStateFlow()
+
+    private val _currentCrewName = MutableStateFlow<String?>(null)
+    val currentCrewName = _currentCrewName.asStateFlow()
+
+
     val cachedFirstName: String?
         get() = userRepository.cachedUserFirstName
     val cachedLastName: String?
@@ -27,26 +36,27 @@ class UserViewModel : ViewModel() {
     val markerColorName = _markerColorName.asStateFlow()
 
     /**
-     * Fetch and cache user details from Firestore.
+     * Fetch and cache user details for the specified crew and user.
      */
     fun fetchUserDetails(userId: String) {
         userRepository.fetchAndCacheUserDetails(userId)
     }
 
     /**
-     * Observe user details from Firestore and update state.
+     * Observe user details for the specified crew and user and update state.
      */
-    fun observeUserDetails(userId: String) {
-        userRepository.observeUserDetails(userId) { isEnabled ->
+    fun observeUserDetails(crewId: String, userId: String) {
+        userRepository.observeUserDetails(crewId, userId) { isEnabled ->
             _isLocationSharingEnabled.value = isEnabled
         }
     }
 
     /**
-     * Observe marker color and location sharing status in real-time.
+     * Observe marker color and location sharing status in real-time for the specified crew and user.
      */
-    fun observeMarkerColorAndLocationSharing(userId: String) {
+    fun observeMarkerColorAndLocationSharing(crewId: String, userId: String) {
         userRepository.observeMarkerColorAndLocationSharing(
+            crewId,
             userId,
             onMarkerColorUpdated = { colorName ->
                 _markerColorName.value = colorName
@@ -58,17 +68,17 @@ class UserViewModel : ViewModel() {
     }
 
     /**
-     * Update marker color in Realtime Database.
+     * Update marker color in Realtime Database for the specified crew and user.
      */
-    fun updateMarkerColor(userId: String, colorName: String) {
-        userRepository.updateMarkerColor(userId, colorName, _isLocationSharingEnabled.value)
+    fun updateMarkerColor(crewId: String, userId: String, colorName: String) {
+        userRepository.updateMarkerColor(crewId, userId, colorName, _isLocationSharingEnabled.value)
     }
 
     /**
-     * Toggle location sharing and update state.
+     * Toggle location sharing for the specified crew and user and update state.
      */
-    fun toggleLocationSharing(userId: String, isEnabled: Boolean) {
-        userRepository.updateLocationSharing(userId, isEnabled) { success ->
+    fun toggleLocationSharing(crewId: String, userId: String, isEnabled: Boolean) {
+        userRepository.updateLocationSharing(crewId, userId, isEnabled) { success ->
             if (success) {
                 _isLocationSharingEnabled.value = isEnabled
                 println("Location sharing toggled successfully")
@@ -77,4 +87,55 @@ class UserViewModel : ViewModel() {
             }
         }
     }
+
+    /**
+     * Fetch the crew ID for the current user.
+     */
+    fun fetchCrewId(userId: String) {
+        userRepository.getUserCrewId(userId) { crewId ->
+            _currentCrewId.value = crewId
+        }
+    }
+
+    fun fetchCrewName(crewId: String) {
+        userRepository.getUserCrewName(crewId) { crewName ->
+            _currentCrewName.value = crewName
+        }
+    }
+
+    /**
+     * Update the user's crew ID.
+     */
+    /**
+     * Update the user's crew ID and add their details to the crew's `members` node.
+     */
+    fun updateCrewId(crewId: String) {
+        val userId = currentUserId ?: return
+
+        // Update the user's crew ID in the global "users" node
+        userRepository.updateUserCrewId(userId, crewId)
+
+        // Add user details to the crew's "members" node
+        userRepository.updateUserCrewId(userId, crewId)
+
+        // Update the local state
+        _currentCrewId.value = crewId
+    }
+
+    fun updateUserInformation(
+        crewId: String,
+        firstName: String,
+        lastName: String,
+        email: String
+    ) {
+        val userId = currentUserId ?: return
+
+        // Update detailed user info in the crew's member list
+        userRepository.updateUserDetails(userId, crewId, firstName, lastName, email)
+
+        // Update local state
+        _currentCrewId.value = crewId
+    }
+
+
 }

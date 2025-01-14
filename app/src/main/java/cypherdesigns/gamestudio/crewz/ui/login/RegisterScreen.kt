@@ -21,8 +21,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,19 +39,24 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.database.FirebaseDatabase
 import cypherdesigns.gamestudio.crewz.R
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(onRegisterSuccess: () -> Unit, onBackToLogin: () -> Unit) {
+
     val context = LocalContext.current
+
     val email = remember { mutableStateOf("") }
     val password = remember { mutableStateOf("") }
     val firstName = remember { mutableStateOf("") }
     val lastName = remember { mutableStateOf("") }
+
     val auth = FirebaseAuth.getInstance()
-    val firestore = FirebaseFirestore.getInstance()
+    val database = FirebaseDatabase.getInstance().reference
+
     var isPasswordVisible by remember { mutableStateOf(false) }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
@@ -73,7 +76,6 @@ fun RegisterScreen(onRegisterSuccess: () -> Unit, onBackToLogin: () -> Unit) {
         containerColor = colorScheme.primary,
         contentColor = Color.Black
     )
-
 
     Box(
         modifier = Modifier
@@ -102,7 +104,7 @@ fun RegisterScreen(onRegisterSuccess: () -> Unit, onBackToLogin: () -> Unit) {
                 color = colorScheme.primary
             )
 
-            // Fields
+            // Input Fields
             OutlinedTextField(
                 value = firstName.value,
                 onValueChange = { firstName.value = it },
@@ -167,31 +169,35 @@ fun RegisterScreen(onRegisterSuccess: () -> Unit, onBackToLogin: () -> Unit) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Register Button
             Button(
                 onClick = {
                     auth.createUserWithEmailAndPassword(email.value, password.value)
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
                                 val userId = auth.currentUser?.uid
-                                val userMap = hashMapOf(
+                                val userMap = mapOf(
                                     "firstName" to firstName.value,
                                     "lastName" to lastName.value,
-                                    "email" to email.value
+                                    "email" to email.value,
+                                    "crewId" to "" // User is not assigned to a crew yet
                                 )
+
                                 if (userId != null) {
-                                    firestore.collection("users").document(userId).set(userMap)
+                                    // Add user to global `users` node
+                                    database.child("users").child(userId).setValue(userMap)
                                         .addOnSuccessListener {
                                             Toast.makeText(
                                                 context,
-                                                "Account created Successfully",
+                                                "Account created successfully",
                                                 Toast.LENGTH_SHORT
                                             ).show()
-                                            onRegisterSuccess()
+                                            onRegisterSuccess() // Navigate to join a crew
                                         }
                                         .addOnFailureListener { e ->
                                             Toast.makeText(
                                                 context,
-                                                "Error: ${e.message}",
+                                                "Error saving user: ${e.message}",
                                                 Toast.LENGTH_SHORT
                                             ).show()
                                         }
@@ -213,6 +219,7 @@ fun RegisterScreen(onRegisterSuccess: () -> Unit, onBackToLogin: () -> Unit) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Back to Login Button
             Button(
                 onClick = onBackToLogin,
                 modifier = Modifier.fillMaxWidth(),
@@ -220,7 +227,6 @@ fun RegisterScreen(onRegisterSuccess: () -> Unit, onBackToLogin: () -> Unit) {
             ) {
                 Text(text = "Already have an account? Login Here.")
             }
-
         }
     }
 }

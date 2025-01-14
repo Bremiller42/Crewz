@@ -71,7 +71,6 @@ fun MapScreen(userViewModel: UserViewModel, onSettingsClick: () -> Unit) {
             FloatingActionButton(
                 onClick = { /* Placeholder for navigation action */ },
                 containerColor = MaterialTheme.colorScheme.primary,
-
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_navigation),
@@ -104,27 +103,26 @@ fun MapContent(
 ) {
     val context = LocalContext.current
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
-    val database = FirebaseDatabase.getInstance().getReference("userLocations")
+    val database = FirebaseDatabase.getInstance().getReference("crews") // Reference to "crews"
 
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
-    var previousLocation by remember { mutableStateOf<LatLng?>(null) }
-
     val crewLocations = remember { mutableStateListOf<CrewMemberLocation>() }
 
     val currentUserId = userViewModel.currentUserId
     val userFirstName = userViewModel.cachedFirstName
     val userLocationEnabled = userViewModel.cachedLocationSharingEnabled
-    val selectedHue by userViewModel.markerColorName.collectAsState() // Retrieve hue from ViewModel
+    val selectedHue by userViewModel.markerColorName.collectAsState()
+    val selectedCrewId by userViewModel.currentCrewId.collectAsState()
 
-    println("Selected Hue: $selectedHue")
-    var isFollowingUser by remember { mutableStateOf(true) }
+    println("Selected Crew ID: $selectedCrewId | Selected Hue: $selectedHue")
+
     val cameraPositionState = rememberCameraPositionState()
 
     // **Update current user location in Firebase**
     DisposableEffect(Unit) {
         val locationRequest = com.google.android.gms.location.LocationRequest.Builder(
             com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
-            2500L // Request updates every 2.5 seconds
+            2500L
         ).build()
 
         val locationCallback = object : com.google.android.gms.location.LocationCallback() {
@@ -132,42 +130,22 @@ fun MapContent(
                 val location = locationResult.lastLocation
                 if (location != null) {
                     val newLocation = LatLng(location.latitude, location.longitude)
-                    val distanceMoved = previousLocation?.let {
-                        val results = FloatArray(1)
-                        Location.distanceBetween(
-                            it.latitude, it.longitude,
-                            newLocation.latitude, newLocation.longitude,
-                            results
+
+                    currentLocation = newLocation
+
+                    if (currentUserId != null && selectedCrewId != null) {
+                        database.child(selectedCrewId!!).child("members").child(currentUserId).setValue(
+                            mapOf(
+                                "latitude" to location.latitude,
+                                "longitude" to location.longitude,
+                                "name" to userFirstName,
+                                "markerColor" to selectedHue,
+                                "locationSharingEnabled" to userLocationEnabled
+                            )
                         )
-                        results[0] // Distance in meters
-                    } ?: Float.MAX_VALUE // If no previous location, always update
-
-                    if (distanceMoved >= 10) {
-                        previousLocation = newLocation // Update the previous location
-                        currentLocation = newLocation // Update the current location
-                        isFollowingUser = true
-
-                        if (currentUserId != null) {
-                            // Update Firebase with the current user location and marker color
-                            val selectedColor = userViewModel.markerColorName.value
-                            database.child(currentUserId).setValue(
-                                mapOf(
-                                    "latitude" to location.latitude,
-                                    "longitude" to location.longitude,
-                                    "name" to userFirstName,
-                                    "markerColor" to selectedColor,
-                                    "locationSharingEnabled" to userLocationEnabled // New flag
-                                )
-                            )
-                        }
-
-                        if (isFollowingUser) {
-                            cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                                newLocation,
-                                15f
-                            )
-                        }
                     }
+
+                    cameraPositionState.position = CameraPosition.fromLatLngZoom(newLocation, 15f)
                 }
             }
         }
@@ -184,52 +162,54 @@ fun MapContent(
     }
 
     // **Listen for crew locations in Firebase**
-    DisposableEffect(Unit) {
-        val crewListener = database.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                crewLocations.clear()
-                snapshot.children.forEach { child ->
-                    val isLocationSharingEnabled =
-                        child.child("locationSharingEnabled").getValue(Boolean::class.java) ?: false
-                    if (isLocationSharingEnabled) {
-                        val name = child.child("name").getValue(String::class.java) ?: "Unknown"
-                        val lat = child.child("latitude").getValue(Double::class.java)
-                        val lng = child.child("longitude").getValue(Double::class.java)
-                        val markerColor = child.child("markerColor").getValue(String::class.java) ?: "red"
+    DisposableEffect(selectedCrewId) {
+        val crewListener = selectedCrewId?.let { crewId ->
+            database.child(crewId).child("members").addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    crewLocations.clear()
+                    snapshot.children.forEach { child ->
+                        val isLocationSharingEnabled =
+                            child.child("locationSharingEnabled").getValue(Boolean::class.java) ?: false
+                        if (isLocationSharingEnabled) {
+                            val name = child.child("name").getValue(String::class.java) ?: "Unknown"
+                            val lat = child.child("latitude").getValue(Double::class.java)
+                            val lng = child.child("longitude").getValue(Double::class.java)
+                            val markerColor = child.child("markerColor").getValue(String::class.java) ?: "red"
 
-                        // Map the markerColor string to a drawable resource ID
-                        val vectorResId = when (markerColor) {
-                            "red" -> R.drawable.ic_crew_marker_red
-                            "orange" -> R.drawable.ic_crew_marker_orange
-                            "yellow" -> R.drawable.ic_crew_marker_yellow
-                            "green" -> R.drawable.ic_crew_marker_green
-                            "blue" -> R.drawable.ic_crew_marker_blue
-                            "cyan" -> R.drawable.ic_crew_marker_cyan
-                            "magenta" -> R.drawable.ic_crew_marker_magenta
-                            "purple" -> R.drawable.ic_crew_marker_purple
-                            "black" -> R.drawable.ic_crew_marker_black
-                            "gray" -> R.drawable.ic_crew_marker_gray
-                            "white" -> R.drawable.ic_crew_marker_white
-                            else -> R.drawable.ic_crew_marker_red // Default to red if unknown
-                        }
+                            val vectorResId = when (markerColor) {
+                                "red" -> R.drawable.ic_crew_marker_red
+                                "orange" -> R.drawable.ic_crew_marker_orange
+                                "yellow" -> R.drawable.ic_crew_marker_yellow
+                                "green" -> R.drawable.ic_crew_marker_green
+                                "blue" -> R.drawable.ic_crew_marker_blue
+                                "cyan" -> R.drawable.ic_crew_marker_cyan
+                                "magenta" -> R.drawable.ic_crew_marker_magenta
+                                "purple" -> R.drawable.ic_crew_marker_purple
+                                "black" -> R.drawable.ic_crew_marker_black
+                                "gray" -> R.drawable.ic_crew_marker_gray
+                                "white" -> R.drawable.ic_crew_marker_white
+                                else -> R.drawable.ic_crew_marker_red
+                            }
 
-                        if (lat != null && lng != null) {
-                            crewLocations.add(CrewMemberLocation(name, LatLng(lat, lng), vectorResId))
+                            if (lat != null && lng != null) {
+                                crewLocations.add(CrewMemberLocation(name, LatLng(lat, lng), vectorResId))
+                            }
                         }
                     }
                 }
-            }
 
-            override fun onCancelled(error: DatabaseError) {
-                println("Failed to fetch crew locations: ${error.message}")
-            }
-        })
+                override fun onCancelled(error: DatabaseError) {
+                    println("Failed to fetch crew locations: ${error.message}")
+                }
+            })
+        }
 
         onDispose {
-            database.removeEventListener(crewListener)
+            crewListener?.let { selectedCrewId?.let { id -> database.child(id).child("members").removeEventListener(it) } }
         }
     }
 
+    // **Render the map content**
     if (currentLocation != null) {
         MapViewContent(
             currentLocation = currentLocation!!,

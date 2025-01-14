@@ -42,8 +42,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -57,7 +57,7 @@ import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 @Composable
 fun LoginScreen(
     viewModel: UserViewModel,
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (String?) -> Unit, // Pass `crewId` to decide next navigation
     onNavigateToRegister: () -> Unit
 ) {
     val context = LocalContext.current
@@ -65,6 +65,7 @@ fun LoginScreen(
     val password = remember { mutableStateOf("") }
     val auth = FirebaseAuth.getInstance()
     var isPasswordVisible by remember { mutableStateOf(false) }
+    val crewId by viewModel.currentCrewId.collectAsState()
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = colorScheme.primary,
@@ -84,12 +85,22 @@ fun LoginScreen(
         contentColor = Color.Black
     )
 
-    // Automatically trigger biometric prompt if credentials exist
+
+    LaunchedEffect(crewId) {
+        // Navigate when `crewId` is loaded
+        crewId?.let { id ->
+            saveCredentials(context, email.value, password.value)
+            onLoginSuccess(id)
+        }
+    }
+    // Automatically show biometric prompt if credentials are available
     LaunchedEffect(Unit) {
         val (storedEmail, storedPassword) = getCredentials(context)
-        if (storedEmail != null && storedPassword != null) {
+        if (!storedEmail.isNullOrEmpty() && !storedPassword.isNullOrEmpty()) {
+            // Delay to ensure UI is rendered before showing prompt
+            kotlinx.coroutines.delay(500)
             showBiometricPrompt(
-                activity = context as FragmentActivity,
+                context as FragmentActivity,
                 onLoginSuccess = onLoginSuccess,
                 onLoginFailure = { error ->
                     Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
@@ -99,6 +110,7 @@ fun LoginScreen(
             )
         }
     }
+
 
     Box(
         modifier = Modifier
@@ -171,9 +183,8 @@ fun LoginScreen(
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
                                 val userId = auth.currentUser?.uid ?: return@addOnCompleteListener
-                                viewModel.fetchUserDetails(userId) // Fetch user details
-                                saveCredentials(context, email.value, password.value)
-                                onLoginSuccess()
+                                viewModel.fetchCrewId(userId) // Trigger the `currentCrewId` state update
+                                viewModel.fetchUserDetails(userId)
                             } else {
                                 Toast.makeText(
                                     context,
@@ -195,11 +206,7 @@ fun LoginScreen(
                 onClick = {
                     showBiometricPrompt(
                         context as FragmentActivity,
-                        onLoginSuccess = {
-                            Toast.makeText(context, "Authentication Succeeded", Toast.LENGTH_SHORT)
-                                .show()
-                            onLoginSuccess()
-                        },
+                        onLoginSuccess = onLoginSuccess,
                         onLoginFailure = { error ->
                             Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
                         },
@@ -229,37 +236,28 @@ fun LoginScreen(
 @RequiresApi(Build.VERSION_CODES.P)
 fun showBiometricPrompt(
     activity: FragmentActivity,
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (String?) -> Unit,
     onLoginFailure: (String) -> Unit,
     viewModel: UserViewModel,
     context: Context
 ) {
-    // Executor for handling the prompt's callback
     val executor: Executor = activity.mainExecutor
-
     val (storedEmail, storedPassword) = getCredentials(context)
 
-    // Callback to handle authentication events
     val biometricPromptCallback = object : BiometricPrompt.AuthenticationCallback() {
         override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-            super.onAuthenticationSucceeded(result)
-
-            // Retrieve stored credentials
+            val auth = FirebaseAuth.getInstance()
             val (email, password) = getCredentials(activity)
-
             if (email != null && password != null) {
-                // Use FirebaseAuth to sign in the user
-                val auth = FirebaseAuth.getInstance()
                 auth.signInWithEmailAndPassword(email, password)
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
-                            val userId = auth.currentUser?.uid
-                            if (userId != null) {
-                                viewModel.fetchUserDetails(userId) // Fetch user details
-                            }
-                            onLoginSuccess()
+                            val userId = auth.currentUser?.uid ?: return@addOnCompleteListener
+                            viewModel.fetchCrewId(userId)
+                            viewModel.fetchUserDetails(userId)
+                            onLoginSuccess(viewModel.currentCrewId.value)
                         } else {
-                            onLoginFailure("Firebase login failed: ${task.exception?.message}")
+                            onLoginFailure("Login failed: ${task.exception?.message}")
                         }
                     }
             } else {
@@ -267,27 +265,20 @@ fun showBiometricPrompt(
             }
         }
 
-        override fun onAuthenticationFailed() {
-            super.onAuthenticationFailed()
-            onLoginFailure("Authentication failed")
+        override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+            onLoginFailure("Authentication error: $errString")
         }
 
-        override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-            super.onAuthenticationError(errorCode, errString)
-            onLoginFailure("Authentication error: $errString")
+        override fun onAuthenticationFailed() {
+            onLoginFailure("Authentication failed.")
         }
     }
 
-    // Create the BiometricPrompt instance
-    val biometricPrompt = BiometricPrompt(activity, executor, biometricPromptCallback)
-
-    // Create the prompt info
     val promptInfo = BiometricPrompt.PromptInfo.Builder()
         .setTitle("Biometric Login")
-        .setSubtitle("Log in using as $storedEmail")
+        .setSubtitle("Log in using your saved credentials")
         .setNegativeButtonText("Cancel")
         .build()
 
-    // Show the prompt
-    biometricPrompt.authenticate(promptInfo)
+    BiometricPrompt(activity, executor, biometricPromptCallback).authenticate(promptInfo)
 }

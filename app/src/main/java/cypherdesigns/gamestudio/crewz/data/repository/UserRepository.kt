@@ -8,7 +8,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 
 class UserRepository {
     private val firestore = FirebaseFirestore.getInstance()
-    private val database = FirebaseDatabase.getInstance().getReference("userLocations")
+    private val database = FirebaseDatabase.getInstance()
 
     var cachedUserFirstName: String? = null
         private set
@@ -20,11 +20,12 @@ class UserRepository {
         private set
 
     fun observeMarkerColorAndLocationSharing(
+        crewId: String, // Include crewId for scoped access
         userId: String,
         onMarkerColorUpdated: (String) -> Unit,
         onLocationSharingUpdated: (Boolean) -> Unit
     ) {
-        database.child(userId).apply {
+        database.getReference("crews").child(crewId).child("members").child(userId).apply {
             // Observe marker color
             child("markerColor").addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
@@ -51,9 +52,13 @@ class UserRepository {
         }
     }
 
-
-    fun updateMarkerColor(userId: String, colorName: String, isLocationSharingEnabled: Boolean) {
-        database.child(userId).apply {
+    fun updateMarkerColor(
+        crewId: String, // Include crewId for scoped updates
+        userId: String,
+        colorName: String,
+        isLocationSharingEnabled: Boolean
+    ) {
+        database.getReference("crews").child(crewId).child("members").child(userId).apply {
             // Update marker color
             child("markerColor").setValue(colorName)
                 .addOnSuccessListener {
@@ -74,54 +79,49 @@ class UserRepository {
         }
     }
 
-
     fun fetchAndCacheUserDetails(userId: String) {
-        println("Fetching user details from Firestore for userId: $userId")
-        firestore.collection("users").document(userId).get()
-            .addOnSuccessListener { documentSnapshot ->
-                if (documentSnapshot.exists()) {
-                    println("Document Snapshot: ${documentSnapshot.data}")
-
-                    cachedUserFirstName = documentSnapshot.getString("firstName")
-                    cachedUserLastName = documentSnapshot.getString("lastName")
-                    cachedUserEmail = documentSnapshot.getString("email")
-                    cachedLocationSharingEnabled =
-                        documentSnapshot.getBoolean("isLocationSharingEnabled") ?: false
-                    println("Cached user first name: $cachedUserFirstName")
-                    println("Cached user last name: $cachedUserLastName")
-                    println("Cached user email: $cachedUserEmail")
-                    println("Cached user location sharing: $cachedLocationSharingEnabled")
-
+        println("Fetching user details for userId: $userId")
+        database.getReference("users").child(userId).get()
+            .addOnSuccessListener { snapshot ->
+                if (snapshot.exists()) {
+                    cachedUserFirstName = snapshot.child("firstName").getValue(String::class.java)
+                    cachedUserLastName = snapshot.child("lastName").getValue(String::class.java)
+                    cachedUserEmail = snapshot.child("email").getValue(String::class.java)
+                    println("Cached user details for $userId: FirstName=$cachedUserFirstName")
                 } else {
-                    println("No user details found in Firestore for userId: $userId")
+                    println("No user details found for userId: $userId")
                 }
             }
             .addOnFailureListener {
-                println("Failed to fetch user details from Firestore: ${it.message}")
+                println("Failed to fetch user details: ${it.message}")
             }
     }
 
-    fun observeUserDetails(userId: String, onDetailsUpdated: (Boolean) -> Unit) {
-        firestore.collection("users").document(userId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    println("Error observing user details: ${error.message}")
-                    return@addSnapshotListener
-                }
-                if (snapshot != null && snapshot.exists()) {
+    fun observeUserDetails(crewId: String, userId: String, onDetailsUpdated: (Boolean) -> Unit) {
+        database.getReference("crews").child(crewId).child("members").child(userId)
+            .addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
                     val isLocationSharingEnabled =
-                        snapshot.getBoolean("isLocationSharingEnabled") ?: false
+                        snapshot.child("locationSharingEnabled").getValue(Boolean::class.java) ?: false
                     cachedLocationSharingEnabled = isLocationSharingEnabled
                     onDetailsUpdated(isLocationSharingEnabled)
-                    println("Real-time update: isLocationSharingEnabled = $isLocationSharingEnabled")
+                    println("Real-time update: LocationSharingEnabled=$isLocationSharingEnabled for $userId")
                 }
-            }
+
+                override fun onCancelled(error: DatabaseError) {
+                    println("Error observing user details: ${error.message}")
+                }
+            })
     }
 
-    fun updateLocationSharing(userId: String, isEnabled: Boolean, onComplete: (Boolean) -> Unit) {
-        val updates = mapOf("isLocationSharingEnabled" to isEnabled)
-
-        firestore.collection("users").document(userId).update(updates)
+    fun updateLocationSharing(
+        crewId: String,
+        userId: String,
+        isEnabled: Boolean,
+        onComplete: (Boolean) -> Unit
+    ) {
+        database.getReference("crews").child(crewId).child("members").child(userId).child("locationSharingEnabled")
+            .setValue(isEnabled)
             .addOnSuccessListener {
                 cachedLocationSharingEnabled = isEnabled
                 println("Location Sharing updated successfully: $isEnabled")
@@ -131,28 +131,76 @@ class UserRepository {
                 println("Failed to update location sharing: ${exception.message}")
                 onComplete(false)
             }
-
-        database.child(userId).child("locationSharingEnabled").setValue(isEnabled)
-            .addOnSuccessListener {
-                println("Location sharing updated to: $isEnabled")
-            }
-            .addOnFailureListener { exception ->
-                println("Failed to update location sharing: ${exception.message}")
-            }
     }
-    fun observeUserLocationSharing(userId: String, onLocationSharingUpdated: (Boolean) -> Unit) {
-        database.child(userId).child("locationSharingEnabled")
-            .addValueEventListener(object : ValueEventListener {
+
+    fun getUserCrewId(userId: String, onResult: (String) -> Unit) {
+        database.getReference("users").child(userId).child("crewId")
+            .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    val isLocationSharingEnabled = snapshot.getValue(Boolean::class.java) ?: false
-                    onLocationSharingUpdated(isLocationSharingEnabled)
+                    onResult(snapshot.getValue(String::class.java) ?: "")
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    println("Failed to observe location sharing: ${error.message}")
+                    println("Failed to fetch crew Id: ${error.message}")
                 }
             })
     }
 
-}
+    fun getUserCrewName(crewId: String, onResult: (String) -> Unit) {
+        database.getReference("crews").child(crewId).child("name")
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    onResult(snapshot.getValue(String::class.java) ?: "")
+                }
 
+                override fun onCancelled(error: DatabaseError) {
+                    println("Failed to fetch crew Id: ${error.message}")
+                }
+            })
+    }
+
+    fun updateUserCrewId(userId: String, crewId: String) {
+        // Update global user data
+        database.getReference("users").child(userId).child("crewId").setValue(crewId)
+            .addOnSuccessListener { println("Crew ID updated successfully for userId: $userId") }
+            .addOnFailureListener { println("Error updating Crew ID: ${it.message}") }
+    }
+
+    fun updateUserDetails(
+        userId: String,
+        crewId: String,
+        firstName: String,
+        lastName: String,
+        email: String
+    ) {
+        // Update user details in the crew's members node
+        database.getReference("crews").child(crewId).child("members").child(userId).setValue(
+            mapOf(
+                "firstName" to firstName,
+                "lastName" to lastName,
+                "email" to email,
+                "markerColor" to "red", // Default value
+                "locationSharingEnabled" to false // Default value
+            )
+        ).addOnSuccessListener {
+            println("User details successfully added to crew $crewId")
+        }.addOnFailureListener {
+            println("Error adding user details to crew $crewId: ${it.message}")
+        }
+
+        // Update global user data
+        database.getReference("users").child(userId).setValue(
+            mapOf(
+                "crewId" to crewId,
+                "firstName" to firstName,
+                "lastName" to lastName,
+                "email" to email
+            )
+        ).addOnSuccessListener {
+            println("Global user details updated successfully for userId: $userId")
+        }.addOnFailureListener {
+            println("Error updating global user details: ${it.message}")
+        }
+    }
+
+}

@@ -30,16 +30,17 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import cypherdesigns.gamestudio.crewz.R
 import cypherdesigns.gamestudio.crewz.ui.chat.Message
+import cypherdesigns.gamestudio.crewz.ui.chat.formatTimestamp
 import cypherdesigns.gamestudio.crewz.viewmodel.ChatViewModel
 
 @Composable
-fun ChatroomScreen(viewModel: ChatViewModel, chatroomId: String) {
+fun ChatroomScreen(viewModel: ChatViewModel, crewId: String,  chatroomId: String) {
     val messages by viewModel.messages.collectAsState()
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
     val messageText = remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
-        viewModel.fetchMessages(chatroomId)
+        viewModel.fetchMessages(crewId, chatroomId)
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -120,7 +121,7 @@ fun ChatroomScreen(viewModel: ChatViewModel, chatroomId: String) {
                                 text = messageText.value,
                                 timestamp = System.currentTimeMillis()
                             )
-                            viewModel.sendMessage(chatroomId, message)
+                            viewModel.sendMessage(crewId, chatroomId, message)
                             messageText.value = ""
                         }
                         .addOnFailureListener {
@@ -136,10 +137,4 @@ fun ChatroomScreen(viewModel: ChatViewModel, chatroomId: String) {
             }
         }
     }
-}
-
-
-fun formatTimestamp(timestamp: Long): String {
-    val sdf = java.text.SimpleDateFormat("hh:mm a", java.util.Locale.getDefault())
-    return sdf.format(java.util.Date(timestamp))
 }

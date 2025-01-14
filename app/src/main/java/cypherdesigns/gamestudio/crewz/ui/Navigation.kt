@@ -5,13 +5,18 @@ import MapScreen
 import android.location.Location
 import android.net.Uri
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -29,6 +34,7 @@ import cypherdesigns.gamestudio.crewz.ui.login.LoginScreen
 import cypherdesigns.gamestudio.crewz.ui.login.RegisterScreen
 import cypherdesigns.gamestudio.crewz.ui.screens.ChatroomListScreen
 import cypherdesigns.gamestudio.crewz.ui.screens.ChatroomScreen
+import cypherdesigns.gamestudio.crewz.ui.screens.CrewSelectionScreen
 import cypherdesigns.gamestudio.crewz.ui.screens.ImageDetailScreen
 import cypherdesigns.gamestudio.crewz.ui.screens.SettingsScreen
 import cypherdesigns.gamestudio.crewz.ui.screens.UploadImageScreen
@@ -42,10 +48,12 @@ import kotlinx.coroutines.flow.map
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
-    val bottomBarRoutes = listOf("home", "map", "chat", "gallery") // Routes that should show the BottomBar
+    val bottomBarRoutes =
+        listOf("home", "map", "chat", "gallery") // Routes that should show the BottomBar
     val chatViewModel: ChatViewModel = viewModel()
     val galleryViewModel: GalleryViewModel = viewModel()
     val userViewModel: UserViewModel = viewModel()
+    val crewId by userViewModel.currentCrewId.collectAsState()
 
     val storageReference = FirebaseStorage.getInstance().reference
 
@@ -65,11 +73,17 @@ fun AppNavigation() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable("login") {
+                val context = LocalContext.current
                 LoginScreen(
                     viewModel = userViewModel,
                     onLoginSuccess = {
-                        navController.navigate("home") {
-                            popUpTo("login") { inclusive = true }
+                        val currentUserId = userViewModel.currentUserId
+                        if (currentUserId != null) {
+                            userViewModel.fetchCrewId(currentUserId)
+                            navController.navigate("checkCrew")
+                        } else {
+                            Toast.makeText(context, "Error: User not logged in", Toast.LENGTH_SHORT)
+                                .show()
                         }
                     },
                     onNavigateToRegister = {
@@ -77,6 +91,7 @@ fun AppNavigation() {
                     }
                 )
             }
+
             composable("register") {
                 RegisterScreen(
                     onRegisterSuccess = {
@@ -91,20 +106,27 @@ fun AppNavigation() {
             }
             composable("home") {
                 HomeScreen(
-                    onSettingsClick = {navController.navigate("settings")})
+                    onSettingsClick = { navController.navigate("settings") })
             }
             composable("map") {
                 MapScreen(userViewModel = userViewModel,
-                    onSettingsClick = {navController.navigate("settings")}) // Placeholder
+                    onSettingsClick = { navController.navigate("settings") }) // Placeholder
             }
             composable("gallery") {
                 GalleryScreen(
                     viewModel = galleryViewModel,
                     onNavigateToUploadScreen = { navController.navigate("upload") },
                     onImageClick = { imageData ->
-                        navController.navigate("imageDetail?imageUrl=${Uri.encode(imageData.url)}&uploadedBy=${Uri.encode(imageData.uploadedBy)}")
+                        navController.navigate(
+                            "imageDetail?imageUrl=${Uri.encode(imageData.url)}&uploadedBy=${
+                                Uri.encode(
+                                    imageData.uploadedBy
+                                )
+                            }"
+                        )
                     },
-                    onSettingsClick = {navController.navigate("settings")}
+                    crewId = crewId!!,
+                    onSettingsClick = { navController.navigate("settings") }
                 )
             }
             composable(
@@ -115,12 +137,21 @@ fun AppNavigation() {
                 )
             ) { backStackEntry ->
                 val imageUrl = backStackEntry.arguments?.getString("imageUrl")
-                val uploadedBy = backStackEntry.arguments?.getString("uploadedBy")?.let { Uri.decode(it) }
-                ImageDetailScreen(imageUrl = imageUrl, uploadedBy = uploadedBy)
+                val uploadedBy =
+                    backStackEntry.arguments?.getString("uploadedBy")?.let { Uri.decode(it) }
+                ImageDetailScreen(
+                    imageUrl = imageUrl,
+                    uploadedBy = uploadedBy,
+                    onSettingsClick = { navController.navigate("settings") }
+                )
             }
 
             composable("upload") {
-                UploadImageScreen(storageReference = storageReference, galleryViewModel = galleryViewModel, userViewModel = userViewModel, onNavigateToGalleryScreen = { navController.navigate("gallery") })
+                UploadImageScreen(
+                    storageReference = storageReference,
+                    galleryViewModel = galleryViewModel,
+                    userViewModel = userViewModel,
+                    onNavigateToGalleryScreen = { navController.navigate("gallery") })
             }
             composable("chat") {
                 ChatroomListScreen(
@@ -128,21 +159,57 @@ fun AppNavigation() {
                     onChatroomSelected = { chatroomId ->
                         navController.navigate("chatroom/$chatroomId")
                     },
-                    onSettingsClick = {navController.navigate("settings")}
+                    crewId = crewId!!,
+                    onSettingsClick = { navController.navigate("settings") }
                 )
             }
             composable("chatroom/{chatroomId}") { backStackEntry ->
-                val chatroomId = backStackEntry.arguments?.getString("chatroomId") ?: return@composable
-                ChatroomScreen(viewModel = chatViewModel, chatroomId = chatroomId)
+                val chatroomId =
+                    backStackEntry.arguments?.getString("chatroomId") ?: return@composable
+                ChatroomScreen(viewModel = chatViewModel, crewId!!, chatroomId = chatroomId)
             }
             composable("settings") {
-                userViewModel.currentUserId?.let { it1 ->
+
+                if (crewId != null && userViewModel.currentUserId != null) {
                     SettingsScreen(
                         viewModel = userViewModel,
-                        userId = it1,
+                        userId = userViewModel.currentUserId,
+                        crewId = crewId!!,
                         onBack = { navController.popBackStack() }
                     )
+                } else {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Unable to load settings. Missing required information.")
+                    }
                 }
+
+            }
+            composable("checkCrew") {
+                LaunchedEffect(crewId) {
+                    if (crewId.isNullOrEmpty()) {
+                        navController.navigate("crewSelection") {
+                            popUpTo("checkCrew") { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate("home") {
+                            popUpTo("checkCrew") { inclusive = true }
+                        }
+                    }
+                }
+            }
+
+            composable("crewSelection") {
+                // The screen where users select a crew to join
+                CrewSelectionScreen(
+                    userViewModel = userViewModel,
+                    onCrewSelected = { crewId ->
+                        userViewModel.updateCrewId(crewId) // Update crewId in Firebase
+                        navController.navigate("home") {
+                            popUpTo("crewSelection") { inclusive = true }
+                        }
+                    },
+                    onSettingsClick = { navController.navigate("settings") }
+                )
             }
         }
     }

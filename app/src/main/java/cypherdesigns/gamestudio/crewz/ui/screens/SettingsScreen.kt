@@ -33,16 +33,18 @@ import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 @Composable
 fun SettingsScreen(
     viewModel: UserViewModel,
+    crewId: String,
     userId: String,
     onBack: () -> Unit
 ) {
     val isLocationSharingEnabled by viewModel.isLocationSharingEnabled.collectAsState()
     val selectedColor by viewModel.markerColorName.collectAsState() // Observe selected color name
-
+    val currentCrewName by viewModel.currentCrewName.collectAsState()
 
     LaunchedEffect(Unit) {
-        viewModel.observeUserDetails(userId)
-        viewModel.observeMarkerColorAndLocationSharing(userId)
+        viewModel.observeUserDetails(crewId, userId)
+        viewModel.observeMarkerColorAndLocationSharing(crewId, userId)
+        viewModel.fetchCrewName(crewId)
     }
 
     Scaffold(
@@ -55,7 +57,7 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
                 "Profile",
@@ -71,6 +73,17 @@ fun SettingsScreen(
                 text = "${viewModel.cachedFirstName} ${viewModel.cachedLastName}",
                 style = MaterialTheme.typography.headlineSmall
             )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "Crew:",
+                style = MaterialTheme.typography.headlineSmall
+            )
+            currentCrewName?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.headlineSmall
+                )
+            }
             Spacer(Modifier.height(4.dp))
             Text(
                 text = "Email:",
@@ -93,7 +106,7 @@ fun SettingsScreen(
                 androidx.compose.material3.Switch(
                     checked = isLocationSharingEnabled,
                     onCheckedChange = { isEnabled ->
-                        viewModel.toggleLocationSharing(userId, isEnabled)
+                        viewModel.toggleLocationSharing(crewId, userId, isEnabled)
                     }
                 )
             }
@@ -106,7 +119,7 @@ fun SettingsScreen(
             ColorPicker(
                 currentColor = selectedColor,
                 onColorSelected = { colorName ->
-                    viewModel.updateMarkerColor(userId, colorName) // Save color selection
+                    viewModel.updateMarkerColor(crewId, userId, colorName) // Save color selection
                 }
             )
         }

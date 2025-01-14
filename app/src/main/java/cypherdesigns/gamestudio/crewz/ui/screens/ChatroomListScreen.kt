@@ -1,5 +1,6 @@
 package cypherdesigns.gamestudio.crewz.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,20 +35,27 @@ import cypherdesigns.gamestudio.crewz.viewmodel.ChatViewModel
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import cypherdesigns.gamestudio.crewz.R
+import cypherdesigns.gamestudio.crewz.ui.chat.formatTimestamp
 
 @Composable
-fun ChatroomListScreen(viewModel: ChatViewModel, onChatroomSelected: (String) -> Unit, onSettingsClick: () -> Unit) {
+fun ChatroomListScreen(
+    viewModel: ChatViewModel,
+    crewId: String, // Pass the crew ID
+    onChatroomSelected: (String) -> Unit,
+    onSettingsClick: () -> Unit
+) {
     val chatrooms by viewModel.chatrooms.collectAsState()
-    val context = LocalContext.current // Get the current context
+    val context = LocalContext.current
 
     var showDialog by remember { mutableStateOf(false) }
     var newChatroomName by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
-        viewModel.fetchChatrooms()
+        viewModel.fetchChatrooms(crewId) // Fetch chatrooms for the selected crew
     }
+
     Scaffold(
-        topBar = { AppTopAppBar(title = "Crew Chatrooms", onSettingsClick = onSettingsClick ) },
+        topBar = { AppTopAppBar(title = "Crew Chatrooms", onSettingsClick = onSettingsClick) },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showDialog = true },
@@ -55,7 +63,7 @@ fun ChatroomListScreen(viewModel: ChatViewModel, onChatroomSelected: (String) ->
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_upload),
-                    contentDescription = "Upload Image",
+                    contentDescription = "Create Chatroom",
                     tint = MaterialTheme.colorScheme.background
                 )
             }
@@ -75,33 +83,33 @@ fun ChatroomListScreen(viewModel: ChatViewModel, onChatroomSelected: (String) ->
                         headlineContent = {
                             Text(
                                 chatroom.name,
-                                color = MaterialTheme.colorScheme.background,
+                                color = MaterialTheme.colorScheme.onBackground,
                                 style = MaterialTheme.typography.headlineSmall
                             )
                         },
                         supportingContent = {
                             Text(
                                 chatroom.lastMessage,
-                                color = MaterialTheme.colorScheme.background,
+                                color = MaterialTheme.colorScheme.onBackground,
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         },
                         trailingContent = {
                             Text(
                                 formatTimestamp(chatroom.lastMessageTimeStamp),
-                                color = MaterialTheme.colorScheme.background,
+                                color = MaterialTheme.colorScheme.onBackground,
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         },
                         colors = androidx.compose.material3.ListItemDefaults.colors(
-                            containerColor = MaterialTheme.colorScheme.primary
+                            containerColor = MaterialTheme.colorScheme.surface
                         ),
                         modifier = Modifier.clickable { onChatroomSelected(chatroom.id) }
                     )
 
                     HorizontalDivider(
                         thickness = 1.dp,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -134,14 +142,12 @@ fun ChatroomListScreen(viewModel: ChatViewModel, onChatroomSelected: (String) ->
                 confirmButton = {
                     Button(
                         onClick = {
-                            println("Create clicked")
                             if (newChatroomName.isNotBlank()) {
-                                println("Creating chatroom with name: $newChatroomName") // Debug
-                                viewModel.createChatroom(newChatroomName, context)
+                                viewModel.createChatroom(crewId, newChatroomName, context)
                                 newChatroomName = ""
                                 showDialog = false
                             } else {
-                                println("Chatroom name is blank") // Debug
+                                Toast.makeText(context, "Chatroom name cannot be blank", Toast.LENGTH_SHORT).show()
                             }
                         }
                     ) {
@@ -157,3 +163,4 @@ fun ChatroomListScreen(viewModel: ChatViewModel, onChatroomSelected: (String) ->
         }
     }
 }
+
