@@ -102,7 +102,8 @@ class UserRepository {
             .addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val isLocationSharingEnabled =
-                        snapshot.child("locationSharingEnabled").getValue(Boolean::class.java) ?: false
+                        snapshot.child("locationSharingEnabled").getValue(Boolean::class.java)
+                            ?: false
                     cachedLocationSharingEnabled = isLocationSharingEnabled
                     onDetailsUpdated(isLocationSharingEnabled)
                     println("Real-time update: LocationSharingEnabled=$isLocationSharingEnabled for $userId")
@@ -120,7 +121,8 @@ class UserRepository {
         isEnabled: Boolean,
         onComplete: (Boolean) -> Unit
     ) {
-        database.getReference("crews").child(crewId).child("members").child(userId).child("locationSharingEnabled")
+        database.getReference("crews").child(crewId).child("members").child(userId)
+            .child("locationSharingEnabled")
             .setValue(isEnabled)
             .addOnSuccessListener {
                 cachedLocationSharingEnabled = isEnabled

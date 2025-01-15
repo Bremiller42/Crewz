@@ -65,7 +65,6 @@ fun LoginScreen(
     val password = remember { mutableStateOf("") }
     val auth = FirebaseAuth.getInstance()
     var isPasswordVisible by remember { mutableStateOf(false) }
-    val crewId by viewModel.currentCrewId.collectAsState()
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = colorScheme.primary,
@@ -85,14 +84,6 @@ fun LoginScreen(
         contentColor = Color.Black
     )
 
-
-    LaunchedEffect(crewId) {
-        // Navigate when `crewId` is loaded
-        crewId?.let { id ->
-            saveCredentials(context, email.value, password.value)
-            onLoginSuccess(id)
-        }
-    }
     // Automatically show biometric prompt if credentials are available
     LaunchedEffect(Unit) {
         val (storedEmail, storedPassword) = getCredentials(context)
@@ -182,9 +173,19 @@ fun LoginScreen(
                     auth.signInWithEmailAndPassword(email.value, password.value)
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
+                                saveCredentials(context, email.value, password.value) // Save credentials here
+                                Toast.makeText(context, "Login Credentials Saved", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "You can now use biometrics", Toast.LENGTH_SHORT).show()
                                 val userId = auth.currentUser?.uid ?: return@addOnCompleteListener
-                                viewModel.fetchCrewId(userId) // Trigger the `currentCrewId` state update
+                                viewModel.fetchCrewId(userId) { crewId ->
+                                    if (!crewId.isNullOrEmpty()) {
+                                        onLoginSuccess(crewId) // Navigate to home or another screen
+                                    } else {
+                                        Toast.makeText(context, "No crew found. Please join a crew.", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                                 viewModel.fetchUserDetails(userId)
+                                onLoginSuccess(viewModel.currentCrewId.value)
                             } else {
                                 Toast.makeText(
                                     context,
@@ -241,6 +242,7 @@ fun showBiometricPrompt(
     viewModel: UserViewModel,
     context: Context
 ) {
+
     val executor: Executor = activity.mainExecutor
     val (storedEmail, storedPassword) = getCredentials(context)
 
@@ -252,8 +254,15 @@ fun showBiometricPrompt(
                 auth.signInWithEmailAndPassword(email, password)
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
+                            saveCredentials(context, email, password)
                             val userId = auth.currentUser?.uid ?: return@addOnCompleteListener
-                            viewModel.fetchCrewId(userId)
+                            viewModel.fetchCrewId(userId) { crewId ->
+                                if (!crewId.isNullOrEmpty()) {
+                                    onLoginSuccess(crewId) // Navigate to home or another screen
+                                } else {
+                                    Toast.makeText(context, "No crew found. Please join a crew.", Toast.LENGTH_SHORT).show()
+                                }
+                            }
                             viewModel.fetchUserDetails(userId)
                             onLoginSuccess(viewModel.currentCrewId.value)
                         } else {
@@ -276,7 +285,7 @@ fun showBiometricPrompt(
 
     val promptInfo = BiometricPrompt.PromptInfo.Builder()
         .setTitle("Biometric Login")
-        .setSubtitle("Log in using your saved credentials")
+        .setSubtitle("Log in as $storedEmail")
         .setNegativeButtonText("Cancel")
         .build()
 

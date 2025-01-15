@@ -2,7 +2,6 @@ package cypherdesigns.gamestudio.crewz.ui
 
 import GalleryScreen
 import MapScreen
-import android.location.Location
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
@@ -25,10 +24,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.google.android.gms.location.LocationServices
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
-import cypherdesigns.gamestudio.crewz.data.repository.UserRepository
 import cypherdesigns.gamestudio.crewz.ui.screens.HomeScreen
 import cypherdesigns.gamestudio.crewz.ui.login.LoginScreen
 import cypherdesigns.gamestudio.crewz.ui.login.RegisterScreen
@@ -40,7 +36,6 @@ import cypherdesigns.gamestudio.crewz.ui.screens.SettingsScreen
 import cypherdesigns.gamestudio.crewz.ui.screens.UploadImageScreen
 import cypherdesigns.gamestudio.crewz.viewmodel.ChatViewModel
 import cypherdesigns.gamestudio.crewz.viewmodel.GalleryViewModel
-import cypherdesigns.gamestudio.crewz.viewmodel.LocationViewModel
 import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 import kotlinx.coroutines.flow.map
 
@@ -79,11 +74,19 @@ fun AppNavigation() {
                     onLoginSuccess = {
                         val currentUserId = userViewModel.currentUserId
                         if (currentUserId != null) {
-                            userViewModel.fetchCrewId(currentUserId)
-                            navController.navigate("checkCrew")
+                            userViewModel.fetchCrewId(currentUserId) { crewId ->
+                                if (!crewId.isNullOrEmpty()) {
+                                    navController.navigate("home") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                } else {
+                                    navController.navigate("crewSelection") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            }
                         } else {
-                            Toast.makeText(context, "Error: User not logged in", Toast.LENGTH_SHORT)
-                                .show()
+                            Toast.makeText(context, "Error: User not logged in", Toast.LENGTH_SHORT).show()
                         }
                     },
                     onNavigateToRegister = {

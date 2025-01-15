@@ -91,17 +91,20 @@ class UserViewModel : ViewModel() {
     /**
      * Fetch the crew ID for the current user.
      */
-    fun fetchCrewId(userId: String) {
+    fun fetchCrewId(userId: String, onComplete: (String?) -> Unit) {
         userRepository.getUserCrewId(userId) { crewId ->
-            _currentCrewId.value = crewId
+            _currentCrewId.value = if (crewId.isNotEmpty()) crewId else null
+            onComplete(_currentCrewId.value) // Pass the crewId to the callback
         }
     }
+
 
     fun fetchCrewName(crewId: String) {
         userRepository.getUserCrewName(crewId) { crewName ->
             _currentCrewName.value = crewName
         }
     }
+
 
     /**
      * Update the user's crew ID.
