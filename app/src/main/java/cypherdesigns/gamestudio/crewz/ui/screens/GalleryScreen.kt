@@ -26,27 +26,32 @@ import cypherdesigns.gamestudio.crewz.R
 import cypherdesigns.gamestudio.crewz.data.ImageData
 import cypherdesigns.gamestudio.crewz.ui.screens.AppTopAppBar
 import cypherdesigns.gamestudio.crewz.viewmodel.GalleryViewModel
+import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 
 @Composable
 fun GalleryScreen(
     viewModel: GalleryViewModel,
+    userViewModel: UserViewModel,
     crewId: String, // Pass the crewId to scope data fetching
     onNavigateToUploadScreen: () -> Unit,
     onImageClick: (ImageData) -> Unit, // Pass the entire ImageData object on click
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onMenuClick: () -> Unit
 ) {
     val imageDataList = viewModel.imageUrls.collectAsState().value
 
     // Fetch images for the specific crew on screen load
     LaunchedEffect(crewId) {
         viewModel.fetchImages(crewId)
+        userViewModel.observeCrewMembers(crewId)
     }
 
     Scaffold(
         topBar = {
             AppTopAppBar(
                 title = "Crew Gallery",
-                onSettingsClick = onSettingsClick
+                onSettingsClick = onSettingsClick,
+                onMenuClick = onMenuClick
             )
         },
         floatingActionButton = {

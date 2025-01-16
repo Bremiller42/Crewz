@@ -2,8 +2,13 @@ package cypherdesigns.gamestudio.crewz.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.ValueEventListener
 import cypherdesigns.gamestudio.crewz.data.repository.UserRepository
+import cypherdesigns.gamestudio.crewz.ui.memberlist.CrewMember
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class UserViewModel : ViewModel() {
@@ -34,6 +39,9 @@ class UserViewModel : ViewModel() {
     // State for marker color
     private val _markerColorName = MutableStateFlow("red") // Default to red
     val markerColorName = _markerColorName.asStateFlow()
+
+    private val _crewMembers = MutableStateFlow<List<CrewMember>>(emptyList())
+    val crewMembers: StateFlow<List<CrewMember>> = _crewMembers.asStateFlow()
 
     /**
      * Fetch and cache user details for the specified crew and user.
@@ -106,12 +114,6 @@ class UserViewModel : ViewModel() {
     }
 
 
-    /**
-     * Update the user's crew ID.
-     */
-    /**
-     * Update the user's crew ID and add their details to the crew's `members` node.
-     */
     fun updateCrewId(crewId: String) {
         val userId = currentUserId ?: return
 
@@ -138,6 +140,20 @@ class UserViewModel : ViewModel() {
 
         // Update local state
         _currentCrewId.value = crewId
+    }
+
+    fun observeCrewMembers(crewId: String) {
+        userRepository.observeCrewMembers(crewId) { members ->
+            _crewMembers.value = members
+        }
+    }
+
+    fun updateOnlineStatus(crewId: String, userId: String, isOnline: Boolean) {
+        userRepository.updateOnlineStatus(crewId, userId, isOnline)
+    }
+
+    fun observeConnectionStatus(crewId: String, userId: String) {
+        userRepository.observeConnectionStatus(crewId, userId)
     }
 
 

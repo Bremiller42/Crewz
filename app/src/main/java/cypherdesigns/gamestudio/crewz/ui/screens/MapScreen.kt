@@ -34,7 +34,7 @@ import cypherdesigns.gamestudio.crewz.ui.screens.AppTopAppBar
 import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 
 @Composable
-fun MapScreen(userViewModel: UserViewModel, onSettingsClick: () -> Unit) {
+fun MapScreen(userViewModel: UserViewModel, onSettingsClick: () -> Unit, onMenuClick: () -> Unit) {
     val context = LocalContext.current
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -58,15 +58,19 @@ fun MapScreen(userViewModel: UserViewModel, onSettingsClick: () -> Unit) {
             ).show()
         }
     }
+    val crewId by userViewModel.currentCrewId.collectAsState()
+
 
     LaunchedEffect(Unit) {
         if (!hasLocationPermission) {
             permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            crewId?.let { userViewModel.observeCrewMembers(it) }
+
         }
     }
 
     Scaffold(
-        topBar = { AppTopAppBar(title = "Crew Map", onSettingsClick = onSettingsClick) },
+        topBar = { AppTopAppBar(title = "Crew Map", onSettingsClick = onSettingsClick, onMenuClick = onMenuClick) },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { /* Placeholder for navigation action */ },

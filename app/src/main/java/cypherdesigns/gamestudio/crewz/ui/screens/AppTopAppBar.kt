@@ -15,7 +15,11 @@ import androidx.compose.ui.res.painterResource
 import cypherdesigns.gamestudio.crewz.R
 
 @Composable
-fun AppTopAppBar(title: String, onSettingsClick: ()-> Unit) {
+fun AppTopAppBar(
+    title: String,
+    onSettingsClick: () -> Unit,
+    onMenuClick: () -> Unit
+) {
     androidx.compose.material.TopAppBar(
         backgroundColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.primary
@@ -30,8 +34,18 @@ fun AppTopAppBar(title: String, onSettingsClick: ()-> Unit) {
                 color = MaterialTheme.colorScheme.primary
             )
             IconButton(
-                onClick = onSettingsClick,
+                onClick = onMenuClick,
                 modifier = Modifier.align(Alignment.CenterStart)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_members_menu),
+                    contentDescription = "Menu",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            IconButton(
+                onClick = onSettingsClick,
+                modifier = Modifier.align(Alignment.CenterEnd)
             ) {
                 if (title != "Settings") {
                     Icon(
@@ -48,6 +62,7 @@ fun AppTopAppBar(title: String, onSettingsClick: ()-> Unit) {
                     )
                 }
             }
+
         }
     }
 }

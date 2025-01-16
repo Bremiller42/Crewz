@@ -35,7 +35,8 @@ import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 fun CrewSelectionScreen(
     userViewModel: UserViewModel,
     onCrewSelected: (String) -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onMenuClick: () -> Unit
 ) {
     val context = LocalContext.current
     val database = FirebaseDatabase.getInstance().getReference("crews")
@@ -70,7 +71,7 @@ fun CrewSelectionScreen(
 
     // Scaffold to hold the crew list and FAB
     Scaffold(
-        topBar = { AppTopAppBar(title = "Join a Crew", onSettingsClick = onSettingsClick) },
+        topBar = { AppTopAppBar(title = "Join a Crew", onSettingsClick = onSettingsClick, onMenuClick = onMenuClick) },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showCreateCrewDialog = true },

@@ -35,7 +35,8 @@ fun SettingsScreen(
     viewModel: UserViewModel,
     crewId: String,
     userId: String,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onMenuClick: () -> Unit
 ) {
     val isLocationSharingEnabled by viewModel.isLocationSharingEnabled.collectAsState()
     val selectedColor by viewModel.markerColorName.collectAsState() // Observe selected color name
@@ -45,11 +46,12 @@ fun SettingsScreen(
         viewModel.observeUserDetails(crewId, userId)
         viewModel.observeMarkerColorAndLocationSharing(crewId, userId)
         viewModel.fetchCrewName(crewId)
+        viewModel.observeCrewMembers(crewId)
     }
 
     Scaffold(
         topBar = {
-            AppTopAppBar(title = "Settings", onSettingsClick = onBack)
+            AppTopAppBar(title = "Settings", onSettingsClick = onBack, onMenuClick = onMenuClick)
         }
     ) { innerPadding ->
         Column(

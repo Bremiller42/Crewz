@@ -36,13 +36,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import cypherdesigns.gamestudio.crewz.R
 import cypherdesigns.gamestudio.crewz.ui.chat.formatTimestamp
+import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 
 @Composable
 fun ChatroomListScreen(
     viewModel: ChatViewModel,
+    userViewModel: UserViewModel,
     crewId: String, // Pass the crew ID
     onChatroomSelected: (String) -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onMenuClick: () -> Unit
 ) {
     val chatrooms by viewModel.chatrooms.collectAsState()
     val context = LocalContext.current
@@ -52,10 +55,17 @@ fun ChatroomListScreen(
 
     LaunchedEffect(Unit) {
         viewModel.fetchChatrooms(crewId) // Fetch chatrooms for the selected crew
+        userViewModel.observeCrewMembers(crewId)
     }
 
     Scaffold(
-        topBar = { AppTopAppBar(title = "Crew Chatrooms", onSettingsClick = onSettingsClick) },
+        topBar = {
+            AppTopAppBar(
+                title = "Crew Chatrooms",
+                onSettingsClick = onSettingsClick,
+                onMenuClick = onMenuClick
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showDialog = true },
@@ -147,7 +157,11 @@ fun ChatroomListScreen(
                                 newChatroomName = ""
                                 showDialog = false
                             } else {
-                                Toast.makeText(context, "Chatroom name cannot be blank", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(
+                                    context,
+                                    "Chatroom name cannot be blank",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             }
                         }
                     ) {

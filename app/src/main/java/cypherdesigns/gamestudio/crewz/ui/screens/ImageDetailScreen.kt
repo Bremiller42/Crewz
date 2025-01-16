@@ -21,10 +21,11 @@ import cypherdesigns.gamestudio.crewz.R
 fun ImageDetailScreen(
     imageUrl: String?,
     uploadedBy: String?,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onMenuClick: () -> Unit
 ) {
     Scaffold(
-        topBar = { AppTopAppBar(title = "Crew Map", onSettingsClick = onSettingsClick) },
+        topBar = { AppTopAppBar(title = "Crew Map", onSettingsClick = onSettingsClick, onMenuClick = onMenuClick) },
     ) { paddingValues ->
         Box(
             modifier = Modifier
