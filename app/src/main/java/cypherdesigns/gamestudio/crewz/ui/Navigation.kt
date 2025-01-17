@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -38,6 +39,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.google.firebase.storage.FirebaseStorage
+import cypherdesigns.gamestudio.crewz.data.utilities.AppLifecycleObserver
 import cypherdesigns.gamestudio.crewz.ui.screens.HomeScreen
 import cypherdesigns.gamestudio.crewz.ui.login.LoginScreen
 import cypherdesigns.gamestudio.crewz.ui.login.RegisterScreen
@@ -54,6 +56,7 @@ import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
+
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 fun AppNavigation() {
@@ -63,14 +66,26 @@ fun AppNavigation() {
     val galleryViewModel: GalleryViewModel = viewModel()
     val userViewModel: UserViewModel = viewModel()
     val crewId by userViewModel.currentCrewId.collectAsState()
+    val userId = userViewModel.currentUserId
+
 
     val storageReference = FirebaseStorage.getInstance().reference
 
     // Drawer state and coroutine scope
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
-    LaunchedEffect(Unit) {
-        crewId?.let { userViewModel.observeCrewMembers(it) }
+
+    LaunchedEffect(crewId) {
+        crewId?.let { userViewModel.observeCrewMembers(it)
+            userViewModel.observeConnectionStatus(it, userViewModel.currentUserId ?: return@LaunchedEffect)
+        }
+        if (crewId != null && userId != null) {
+            val lifecycleObserver = AppLifecycleObserver(crewId!!, userId) { isOnline ->
+                println("User $userId is now ${if (isOnline) "online" else "offline"}")
+            }
+            ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
+        }
+
     }
 
     // Collect the user statuses
@@ -89,7 +104,7 @@ fun AppNavigation() {
                     .offset(x = -20.dp)
             ) {
                 CrewSidebar(
-                    crewMembers = crewMembers,
+                    userViewModel = userViewModel,
                     onMemberClick = { member ->
                         println("Clicked on member: ${member.name}")
                     }

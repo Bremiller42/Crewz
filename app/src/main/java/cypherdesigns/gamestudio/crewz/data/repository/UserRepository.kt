@@ -234,6 +234,7 @@ class UserRepository {
         crewListeners[crewId] = listener
     }
 
+
     fun cleanupCrewMembersListener(crewId: String) {
         crewListeners[crewId]?.let {
             database.getReference("crews/$crewId/members").removeEventListener(it)
