@@ -68,6 +68,14 @@ fun SettingsScreen(
             )
             Spacer(Modifier.height(4.dp))
             Text(
+                text = "Username:",
+                style = MaterialTheme.typography.headlineSmall
+            )
+            Text(
+                text = "${viewModel.cachedUserName}",
+                style = MaterialTheme.typography.headlineSmall
+            )
+            Text(
                 text = "Name:",
                 style = MaterialTheme.typography.headlineSmall
             )

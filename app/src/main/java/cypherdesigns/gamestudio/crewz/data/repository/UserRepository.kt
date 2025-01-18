@@ -11,7 +11,8 @@ class UserRepository {
     private val firestore = FirebaseFirestore.getInstance()
     private val database = FirebaseDatabase.getInstance()
     private val crewListeners = mutableMapOf<String, ValueEventListener>()
-
+    var cachedUserName: String? = null
+        private set
     var cachedUserFirstName: String? = null
         private set
     var cachedUserLastName: String? = null
@@ -86,6 +87,7 @@ class UserRepository {
         database.getReference("users").child(userId).get()
             .addOnSuccessListener { snapshot ->
                 if (snapshot.exists()) {
+                    cachedUserName = snapshot.child("userName").getValue(String::class.java)
                     cachedUserFirstName = snapshot.child("firstName").getValue(String::class.java)
                     cachedUserLastName = snapshot.child("lastName").getValue(String::class.java)
                     cachedUserEmail = snapshot.child("email").getValue(String::class.java)
@@ -171,8 +173,9 @@ class UserRepository {
     }
 
     fun updateUserDetails(
-        userId: String,
         crewId: String,
+        userId: String,
+        userName: String,
         firstName: String,
         lastName: String,
         email: String
@@ -180,6 +183,7 @@ class UserRepository {
         // Update user details in the crew's members node
         database.getReference("crews").child(crewId).child("members").child(userId).setValue(
             mapOf(
+                "userName" to userName,
                 "firstName" to firstName,
                 "lastName" to lastName,
                 "email" to email,
@@ -195,6 +199,7 @@ class UserRepository {
         // Update global user data
         database.getReference("users").child(userId).setValue(
             mapOf(
+                "userName" to userName,
                 "crewId" to crewId,
                 "firstName" to firstName,
                 "lastName" to lastName,
@@ -218,7 +223,7 @@ class UserRepository {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val members = snapshot.children.mapNotNull { child ->
-                    val name = child.child("name").getValue(String::class.java) ?: "Unknown"
+                    val name = child.child("firstName").getValue(String::class.java) ?: "Unknown"
                     val online = child.child("online").getValue(Boolean::class.java) ?: false
                     CrewMember(name, online)
                 }
@@ -276,6 +281,20 @@ class UserRepository {
                 println("Failed to observe connection status: ${error.message}")
             }
         })
+    }
+
+    fun isUsernameUnique(userName: String, onResult: (Boolean) -> Unit) {
+        database.getReference("users").orderByChild("userName").equalTo(userName)
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    onResult(!snapshot.exists()) // True if username is unique
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    println("Error checking username uniqueness: ${error.message}")
+                    onResult(false) // Treat as not unique if error occurs
+                }
+            })
     }
 
 

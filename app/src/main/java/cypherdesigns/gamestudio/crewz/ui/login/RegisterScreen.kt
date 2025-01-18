@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,23 +41,23 @@ import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import cypherdesigns.gamestudio.crewz.R
+import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RegisterScreen(onRegisterSuccess: () -> Unit, onBackToLogin: () -> Unit) {
+fun RegisterScreen(viewModel: UserViewModel, onRegisterSuccess: () -> Unit, onBackToLogin: () -> Unit) {
 
     val context = LocalContext.current
-
-    val email = remember { mutableStateOf("") }
-    val password = remember { mutableStateOf("") }
-    val firstName = remember { mutableStateOf("") }
-    val lastName = remember { mutableStateOf("") }
+    val userName = rememberSaveable { mutableStateOf("") }
+    val email = rememberSaveable { mutableStateOf("") }
+    val password = rememberSaveable { mutableStateOf("") }
+    val firstName = rememberSaveable { mutableStateOf("") }
+    val lastName = rememberSaveable { mutableStateOf("") }
 
     val auth = FirebaseAuth.getInstance()
     val database = FirebaseDatabase.getInstance().reference
 
-    var isPasswordVisible by remember { mutableStateOf(false) }
+    var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = colorScheme.primary,
@@ -105,6 +105,13 @@ fun RegisterScreen(onRegisterSuccess: () -> Unit, onBackToLogin: () -> Unit) {
             )
 
             // Input Fields
+            OutlinedTextField(
+                value = userName.value,
+                onValueChange = { userName.value = it },
+                label = { Text("Username") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = textFieldColors
+            )
             OutlinedTextField(
                 value = firstName.value,
                 onValueChange = { firstName.value = it },
@@ -172,44 +179,55 @@ fun RegisterScreen(onRegisterSuccess: () -> Unit, onBackToLogin: () -> Unit) {
             // Register Button
             Button(
                 onClick = {
-                    auth.createUserWithEmailAndPassword(email.value, password.value)
-                        .addOnCompleteListener { task ->
-                            if (task.isSuccessful) {
-                                val userId = auth.currentUser?.uid
-                                val userMap = mapOf(
-                                    "firstName" to firstName.value,
-                                    "lastName" to lastName.value,
-                                    "email" to email.value,
-                                    "crewId" to "" // User is not assigned to a crew yet
-                                )
+                    if (userName.value.isBlank()) {
+                        Toast.makeText(context, "Username cannot be empty", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
 
-                                if (userId != null) {
-                                    // Add user to global `users` node
-                                    database.child("users").child(userId).setValue(userMap)
-                                        .addOnSuccessListener {
-                                            Toast.makeText(
-                                                context,
-                                                "Account created successfully",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                            onRegisterSuccess() // Navigate to join a crew
+                    viewModel.checkUsernameUnique(userName.value) { isUnique ->
+                        if (isUnique) {
+                            auth.createUserWithEmailAndPassword(email.value, password.value)
+                                .addOnCompleteListener { task ->
+                                    if (task.isSuccessful) {
+                                        val userId = auth.currentUser?.uid
+                                        val userMap = mapOf(
+                                            "userName" to userName.value,
+                                            "firstName" to firstName.value,
+                                            "lastName" to lastName.value,
+                                            "email" to email.value,
+                                            "crewId" to "" // User is not assigned to a crew yet
+                                        )
+
+                                        if (userId != null) {
+                                            database.child("users").child(userId).setValue(userMap)
+                                                .addOnSuccessListener {
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Account created successfully",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                    onRegisterSuccess()
+                                                }
+                                                .addOnFailureListener { e ->
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Error saving user: ${e.message}",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
                                         }
-                                        .addOnFailureListener { e ->
-                                            Toast.makeText(
-                                                context,
-                                                "Error saving user: ${e.message}",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
+                                    } else {
+                                        Toast.makeText(
+                                            context,
+                                            "Registration Failed: ${task.exception?.message}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
                                 }
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    "Registration Failed: ${task.exception?.message}",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
+                        } else {
+                            Toast.makeText(context, "Username is already taken", Toast.LENGTH_SHORT).show()
                         }
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = buttonColors
@@ -230,3 +248,5 @@ fun RegisterScreen(onRegisterSuccess: () -> Unit, onBackToLogin: () -> Unit) {
         }
     }
 }
+
+

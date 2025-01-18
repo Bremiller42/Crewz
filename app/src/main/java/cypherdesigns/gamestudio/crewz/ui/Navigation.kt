@@ -91,8 +91,6 @@ fun AppNavigation() {
     // Collect the user statuses
     val crewMembers by userViewModel.crewMembers.collectAsState()
 
-
-
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -165,6 +163,7 @@ fun AppNavigation() {
 
                     composable("register") {
                         RegisterScreen(
+                            viewModel = UserViewModel(),
                             onRegisterSuccess = {
                                 navController.navigate("login") {
                                     popUpTo("register") { inclusive = true }
@@ -272,7 +271,7 @@ fun AppNavigation() {
                         if (crewId != null && userViewModel.currentUserId != null) {
                             SettingsScreen(
                                 viewModel = userViewModel,
-                                userId = userViewModel.currentUserId,
+                                userId = userViewModel.currentUserId!!,
                                 crewId = crewId!!,
                                 onBack = { navController.popBackStack() },
                                 onMenuClick = {
@@ -304,7 +303,17 @@ fun AppNavigation() {
                         CrewSelectionScreen(
                             userViewModel = userViewModel,
                             onCrewSelected = { crewId ->
+                                // Update the crewId for the user
                                 userViewModel.updateCrewId(crewId)
+
+                                // Update user details in the crew's member list
+                                userViewModel.updateUserInformation(
+                                    crewId = crewId,
+                                    userName = userViewModel.cachedUserName ?: "Unknown User",
+                                    firstName = userViewModel.cachedFirstName ?: "Unknown First",
+                                    lastName = userViewModel.cachedLastName ?: "Unknown Last",
+                                    email = userViewModel.cachedEmail ?: "Unknown Email"
+                                )
                                 navController.navigate("home") {
                                     popUpTo("crewSelection") { inclusive = true }
                                 }

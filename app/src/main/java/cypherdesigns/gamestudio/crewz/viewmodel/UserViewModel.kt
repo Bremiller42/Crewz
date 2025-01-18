@@ -14,7 +14,8 @@ import kotlinx.coroutines.flow.asStateFlow
 class UserViewModel : ViewModel() {
     private val userRepository = UserRepository()
 
-    val currentUserId: String? = FirebaseAuth.getInstance().currentUser?.uid
+    val currentUserId: String?
+        get() = FirebaseAuth.getInstance().currentUser?.uid
 
     private val _currentCrewId = MutableStateFlow<String?>(null)
     val currentCrewId = _currentCrewId.asStateFlow()
@@ -22,7 +23,8 @@ class UserViewModel : ViewModel() {
     private val _currentCrewName = MutableStateFlow<String?>(null)
     val currentCrewName = _currentCrewName.asStateFlow()
 
-
+    val cachedUserName: String?
+        get() = userRepository.cachedUserName
     val cachedFirstName: String?
         get() = userRepository.cachedUserFirstName
     val cachedLastName: String?
@@ -120,15 +122,13 @@ class UserViewModel : ViewModel() {
         // Update the user's crew ID in the global "users" node
         userRepository.updateUserCrewId(userId, crewId)
 
-        // Add user details to the crew's "members" node
-        userRepository.updateUserCrewId(userId, crewId)
-
         // Update the local state
         _currentCrewId.value = crewId
     }
 
     fun updateUserInformation(
         crewId: String,
+        userName: String,
         firstName: String,
         lastName: String,
         email: String
@@ -136,10 +136,11 @@ class UserViewModel : ViewModel() {
         val userId = currentUserId ?: return
 
         // Update detailed user info in the crew's member list
-        userRepository.updateUserDetails(userId, crewId, firstName, lastName, email)
+        userRepository.updateUserDetails(crewId, userId, userName, firstName, lastName, email)
 
         // Update local state
         _currentCrewId.value = crewId
+        println("Updated $userId details: \n CrewId: $crewId \n UserName: $userName \n Name: $firstName $lastName \n Email: $email")
     }
 
     fun observeCrewMembers(crewId: String) {
@@ -154,6 +155,10 @@ class UserViewModel : ViewModel() {
 
     fun observeConnectionStatus(crewId: String, userId: String) {
         userRepository.observeConnectionStatus(crewId, userId)
+    }
+
+    fun checkUsernameUnique(userName: String, onResult: (Boolean) -> Unit) {
+        userRepository.isUsernameUnique(userName, onResult)
     }
 
 

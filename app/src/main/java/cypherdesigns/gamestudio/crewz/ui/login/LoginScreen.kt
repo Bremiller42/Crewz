@@ -45,6 +45,7 @@ import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
@@ -66,10 +67,10 @@ fun LoginScreen(
     onNavigateToRegister: () -> Unit
 ) {
     val context = LocalContext.current
-    val email = remember { mutableStateOf("") }
-    val password = remember { mutableStateOf("") }
+    val email = rememberSaveable { mutableStateOf("") }
+    val password = rememberSaveable { mutableStateOf("") }
     val auth = FirebaseAuth.getInstance()
-    var isPasswordVisible by remember { mutableStateOf(false) }
+    var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
@@ -320,12 +321,12 @@ fun loginUser(
                     Toast.LENGTH_SHORT
                 ).show()
 
-                val userId = auth.currentUser?.uid ?: return@addOnCompleteListener
-                viewModel.fetchCrewId(userId) { crewId ->
+                val userId = viewModel.currentUserId
+                viewModel.fetchCrewId(userId!!) { crewId ->
                     if (!crewId.isNullOrEmpty()) {
                         onLoginSuccess(crewId) // Navigate to home or another screen
                     } else {
-                        onLoginFailure("No crew found. Please join a crew.")
+                        onLoginSuccess(null)
                     }
                 }
                 viewModel.fetchUserDetails(userId)
