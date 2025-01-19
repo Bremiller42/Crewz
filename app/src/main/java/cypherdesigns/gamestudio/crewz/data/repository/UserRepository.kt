@@ -1,5 +1,6 @@
 package cypherdesigns.gamestudio.crewz.data.repository
 
+import coil.compose.AsyncImagePainter
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -223,7 +224,7 @@ class UserRepository {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val members = snapshot.children.mapNotNull { child ->
-                    val name = child.child("firstName").getValue(String::class.java) ?: "Unknown"
+                    val name = child.child("userName").getValue(String::class.java) ?: "Unknown"
                     val online = child.child("online").getValue(Boolean::class.java) ?: false
                     CrewMember(name, online)
                 }
@@ -231,7 +232,7 @@ class UserRepository {
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("Failed to fetch crew members: ${error.message}")
+                println("ObserveCrewMembers: Failed to fetch crew members: ${error.message}")
                 onResult(emptyList())
             }
         }
@@ -253,10 +254,10 @@ class UserRepository {
 
         userRef.setValue(isOnline) // Set current status
             .addOnSuccessListener {
-                println("User $userId online status updated to $isOnline")
+                println("UpdateOnlineStatus: User $userId online status updated to $isOnline")
             }
             .addOnFailureListener { exception ->
-                println("Failed to update online status for $userId: ${exception.message}")
+                println("UpdateOnlineStatus: Failed to update online status for $userId: ${exception.message}")
             }
 
         if (isOnline) {
@@ -264,21 +265,22 @@ class UserRepository {
             userRef.onDisconnect().setValue(false)
         }
     }
+
     fun observeConnectionStatus(crewId: String, userId: String) {
         val connectedRef = database.getReference(".info/connected")
         connectedRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val isConnected = snapshot.getValue(Boolean::class.java) ?: false
                 if (isConnected) {
-                    println("User $userId is connected")
+                    println("ObserveConnection: User $userId is connected")
                     updateOnlineStatus(crewId, userId, true)
                 } else {
-                    println("User $userId is disconnected")
+                    println("ObserveConnection: User $userId is disconnected")
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("Failed to observe connection status: ${error.message}")
+                println("ObserveConnection: Failed to observe connection status: ${error.message}")
             }
         })
     }
@@ -291,12 +293,50 @@ class UserRepository {
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    println("Error checking username uniqueness: ${error.message}")
+                    println("UserNameUniqueCheck: Error checking username uniqueness: ${error.message}")
                     onResult(false) // Treat as not unique if error occurs
                 }
             })
     }
 
+    fun updateGlobalUserInfo(
+        userId: String,
+        updates: Map<String, Any>,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        val userRef = FirebaseDatabase.getInstance().getReference("users/$userId")
 
+        userRef.updateChildren(updates)
+            .addOnSuccessListener {
+                println("UpdateGlobal: User Fields updated successfully for $userId")
+                onSuccess()
+            }
+            .addOnFailureListener { error ->
+                println("UpdateGlobal: Error updating user fields for $userId: ${error.message}")
+                onFailure(error.message ?: "Unknown Error")
+            }
+    }
+
+    fun updateCrewUserInfo(
+        crewId: String,
+        userId: String,
+        updates: Map<String, Any>,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        val crewRef = FirebaseDatabase.getInstance().getReference("crews/$crewId/members/$userId")
+
+        crewRef.updateChildren(updates)
+            .addOnSuccessListener {
+                println("UpdateCrewMember: User Fields updated successfully for $userId")
+                onSuccess()
+            }
+            .addOnFailureListener { error ->
+                println("UpdateCrewMember: Error updating user fields for $userId: ${error.message}")
+                onFailure(error.message ?: "Unknown Error")
+            }
+
+    }
 
 }

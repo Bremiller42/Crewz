@@ -71,8 +71,8 @@ fun ChatroomScreen(
                     Row(
                         modifier = Modifier
                             .padding(8.dp)
-                            .fillMaxWidth()
-                            .padding(innerPadding),
+                            .fillMaxWidth(),
+//                            .padding(innerPadding),
                         horizontalArrangement = if (isSentByCurrentUser) Arrangement.End else Arrangement.Start
                     ) {
                         Column {
@@ -90,7 +90,7 @@ fun ChatroomScreen(
                             ) {
                                 Column {
                                     Text(
-                                        text = if (isSentByCurrentUser) "You:" else "${message.senderFirstName}:",
+                                        text = if (isSentByCurrentUser) "You:" else "${message.senderUserName}:",
                                         color = MaterialTheme.colorScheme.background
                                     )
                                     Text(
@@ -132,11 +132,11 @@ fun ChatroomScreen(
                             .child(senderId)
                             .get()
                             .addOnSuccessListener { dataSnapshot ->
-                                val senderFirstName =
-                                    dataSnapshot.child("firstName").getValue(String::class.java)
+                                val senderUserName =
+                                    dataSnapshot.child("userName").getValue(String::class.java)
                                         ?: "Unknown"
                                 val message = Message(
-                                    senderFirstName = senderFirstName,
+                                    senderUserName = senderUserName,
                                     senderId = senderId,
                                     text = messageText.value,
                                     timestamp = System.currentTimeMillis()

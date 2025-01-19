@@ -2,9 +2,6 @@ package cypherdesigns.gamestudio.crewz.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.ValueEventListener
 import cypherdesigns.gamestudio.crewz.data.repository.UserRepository
 import cypherdesigns.gamestudio.crewz.ui.memberlist.CrewMember
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -141,6 +138,24 @@ class UserViewModel : ViewModel() {
         // Update local state
         _currentCrewId.value = crewId
         println("Updated $userId details: \n CrewId: $crewId \n UserName: $userName \n Name: $firstName $lastName \n Email: $email")
+    }
+    fun updateGlobalUserInfo(
+        updates: Map<String, Any>,
+        onSuccess: () -> Unit = {},
+        onFailure: (String) -> Unit = { println("Global Update Error: $it") }
+    ) {
+        val userId = currentUserId ?: return onFailure("User ID is null")
+        userRepository.updateGlobalUserInfo(userId, updates, onSuccess, onFailure)
+    }
+
+    fun updateCrewUserInfo(
+        crewId: String,
+        updates: Map<String, Any>,
+        onSuccess: () -> Unit = {},
+        onFailure: (String) -> Unit = { println("Crew Update Error: $it") }
+    ) {
+        val userId = currentUserId ?: return onFailure("User ID is null")
+        userRepository.updateCrewUserInfo(crewId, userId, updates, onSuccess, onFailure)
     }
 
     fun observeCrewMembers(crewId: String) {

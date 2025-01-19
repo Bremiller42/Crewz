@@ -2,6 +2,6 @@ package cypherdesigns.gamestudio.crewz.ui.memberlist
 
 
 data class CrewMember(
-    val name: String,
+    val userName: String,
     val online: Boolean
 )

@@ -104,7 +104,7 @@ fun AppNavigation() {
                 CrewSidebar(
                     userViewModel = userViewModel,
                     onMemberClick = { member ->
-                        println("Clicked on member: ${member.name}")
+                        println("Clicked on member: ${member.userName}")
                     }
                 )
             }

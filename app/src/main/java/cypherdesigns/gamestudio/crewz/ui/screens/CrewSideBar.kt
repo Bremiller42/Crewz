@@ -62,15 +62,15 @@ fun CrewSidebar(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Text(
-            "Online",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(2.dp))
+//        Text(
+//            "Online",
+//            style = MaterialTheme.typography.headlineSmall,
+//            color = MaterialTheme.colorScheme.primary
+//        )
+//        Spacer(modifier = Modifier.height(2.dp))
         onlineMembers.forEach { member ->
             Text(
-                text = member.name,
+                text = member.userName,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .clickable { onMemberClick(member) }
@@ -79,16 +79,16 @@ fun CrewSidebar(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            "Offline",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+//
+//        Text(
+//            "Offline",
+//            style = MaterialTheme.typography.headlineSmall,
+//            color = MaterialTheme.colorScheme.onBackground
+//        )
         Spacer(modifier = Modifier.height(2.dp))
         offlineMembers.forEach { member ->
             Text(
-                text = member.name,
+                text = member.userName,
                 color = MaterialTheme.colorScheme.onBackground,
 
                 modifier = Modifier

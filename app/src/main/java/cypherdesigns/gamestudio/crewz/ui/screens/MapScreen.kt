@@ -115,7 +115,6 @@ fun MapContent(
     val crewLocations = remember { mutableStateListOf<CrewMemberLocation>() }
 
     val currentUserId = userViewModel.currentUserId
-    val userFirstName = userViewModel.cachedFirstName
     val userLocationEnabled = userViewModel.cachedLocationSharingEnabled
     val selectedHue by userViewModel.markerColorName.collectAsState()
     val selectedCrewId by userViewModel.currentCrewId.collectAsState()
@@ -155,16 +154,25 @@ fun MapContent(
                         if (userLocationEnabled && currentUserId != null && selectedCrewId != null) {
                             // Update Firebase only if location sharing is enabled
                             val selectedColor = userViewModel.markerColorName.value
-                            database.child(selectedCrewId!!).child("members").child(currentUserId).setValue(
-                                mapOf(
-                                    "latitude" to location.latitude,
-                                    "longitude" to location.longitude,
-                                    "name" to userFirstName,
-                                    "markerColor" to selectedColor,
-                                    "locationSharingEnabled" to userLocationEnabled
-                                )
+                            val updates: Map<String, Any> = mapOf(
+                                "latitude" to location.latitude as Any,
+                                "longitude" to location.longitude as Any,
+                                "markerColor" to selectedColor as Any,
+                                "locationSharingEnabled" to userLocationEnabled as Any
+                            )
+
+                            userViewModel.updateCrewUserInfo(
+                                crewId = selectedCrewId!!,
+                                updates = updates,
+                                onSuccess = {
+                                    println("MapContent: Location and user info updated successfully in crew: $selectedCrewId")
+                                },
+                                onFailure = { error ->
+                                    println("MapContent: Error updating location and user info in crew: $error")
+                                }
                             )
                         }
+
 
                         if (isFollowingUser) {
                             cameraPositionState.position = CameraPosition.fromLatLngZoom(
@@ -201,8 +209,7 @@ fun MapContent(
                                     child.child("locationSharingEnabled")
                                         .getValue(Boolean::class.java) ?: false
                                 if (isLocationSharingEnabled) {
-                                    val name = child.child("name").getValue(String::class.java)
-                                        ?: "Unknown"
+                                    val userName = child.child("userName").getValue(String::class.java)
                                     val lat = child.child("latitude").getValue(Double::class.java)
                                     val lng = child.child("longitude").getValue(Double::class.java)
                                     val markerColor =
@@ -227,7 +234,7 @@ fun MapContent(
                                     if (lat != null && lng != null) {
                                         crewLocations.add(
                                             CrewMemberLocation(
-                                                name,
+                                                userName!!,
                                                 LatLng(lat, lng),
                                                 vectorResId
                                             )
@@ -309,7 +316,7 @@ fun MapContent(
 
                 Marker(
                     state = MarkerState(position = crewMember.location),
-                    title = crewMember.name,
+                    title = crewMember.userName,
                     icon = markerIcon
                 )
 
