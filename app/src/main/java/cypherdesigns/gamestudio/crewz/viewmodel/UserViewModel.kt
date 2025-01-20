@@ -18,32 +18,23 @@ class UserViewModel : ViewModel() {
     private val _currentCrewId = MutableStateFlow<String?>(null)
     val currentCrewId: StateFlow<String?> = _currentCrewId.asStateFlow()
 
-    val cachedUserName: String?
-        get() = userRepository.cachedUserName
-    val cachedFirstName: String?
-        get() = userRepository.cachedUserFirstName
-    val cachedLastName: String?
-        get() = userRepository.cachedUserLastName
-    val cachedEmail: String?
-        get() = userRepository.cachedUserEmail
+    // Cached user data
+    val cachedUserName: String? get() = userRepository.cachedUserName
+    val cachedFirstName: String? get() = userRepository.cachedUserFirstName
+    val cachedLastName:  String? get() = userRepository.cachedUserLastName
+    val cachedEmail:     String? get() = userRepository.cachedUserEmail
 
-    /**
-     * Fetch and cache user details from /users/{userId}.
-     */
+    // -------------------------------------------------
+    // Reading user info
+    // -------------------------------------------------
     fun fetchUserDetails(userId: String) {
         userRepository.fetchAndCacheUserDetails(userId)
     }
 
-    /**
-     * Check if a username is unique (for registration).
-     */
     fun checkUsernameUnique(userName: String, onResult: (Boolean) -> Unit) {
         userRepository.isUsernameUnique(userName, onResult)
     }
 
-    /**
-     * Fetch the user's crewId from /users/{userId}/crewId
-     */
     fun fetchCrewId(userId: String, onComplete: (String?) -> Unit) {
         userRepository.getUserCrewId(userId) { crewId ->
             _currentCrewId.value = if (crewId.isEmpty()) null else crewId
@@ -51,17 +42,31 @@ class UserViewModel : ViewModel() {
         }
     }
 
+    // -------------------------------------------------
+    // Writing user info
+    // -------------------------------------------------
+
     /**
-     * Update the user's crewId in /users/{userId}.
+     * Convenience method to update only the 'crewId' field in /users/{userId}.
+     * Internally calls updateGlobalUserInfo(...) with a single field.
      */
     fun updateCrewId(crewId: String) {
         val userId = currentUserId ?: return
-        userRepository.updateUserCrewId(userId, crewId)
-        _currentCrewId.value = crewId
+        updateGlobalUserInfo(
+            updates = mapOf("crewId" to crewId),
+            onSuccess = {
+                println("Updated crewId to $crewId for user=$userId")
+                _currentCrewId.value = crewId
+            },
+            onFailure = {
+                println("updateCrewId error: $it")
+            }
+        )
     }
 
     /**
-     * Update user info in the /users/{userId} node
+     * Convenience method to update userName, firstName, lastName, email, and crewId in /users/{userId}.
+     * Internally calls updateGlobalUserInfo(...) with those fields.
      */
     fun updateUserInfoInUserNode(
         crewId: String,
@@ -71,18 +76,27 @@ class UserViewModel : ViewModel() {
         email: String
     ) {
         val userId = currentUserId ?: return
-        userRepository.updateUserInfoInUserNode(
-            userId,
-            userName,
-            firstName,
-            lastName,
-            email,
-            crewId
+        val updates = mapOf(
+            "userName" to userName,
+            "firstName" to firstName,
+            "lastName"  to lastName,
+            "email"     to email,
+            "crewId"    to crewId
+        )
+        updateGlobalUserInfo(
+            updates = updates,
+            onSuccess = {
+                println("updateUserInfoInUserNode success for $userId")
+            },
+            onFailure = {
+                println("updateUserInfoInUserNode failure: $it")
+            }
         )
     }
 
     /**
-     * Generic updates to /users/{userId}
+     * The universal method for updating any fields in /users/{userId}.
+     * All specialized convenience methods call this internally.
      */
     fun updateGlobalUserInfo(
         updates: Map<String, Any>,
@@ -90,6 +104,11 @@ class UserViewModel : ViewModel() {
         onFailure: (String) -> Unit = {}
     ) {
         val userId = currentUserId ?: return onFailure("User ID is null")
-        userRepository.updateGlobalUserInfo(userId, updates, onSuccess, onFailure)
+        userRepository.updateGlobalUserInfo(
+            userId = userId,
+            updates = updates,
+            onSuccess = onSuccess,
+            onFailure = onFailure
+        )
     }
 }

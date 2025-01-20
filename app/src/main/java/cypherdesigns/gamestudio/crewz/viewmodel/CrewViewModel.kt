@@ -2,7 +2,9 @@ package cypherdesigns.gamestudio.crewz.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cypherdesigns.gamestudio.crewz.data.dataclasses.CrewInfo
 import cypherdesigns.gamestudio.crewz.data.repository.CrewRepository
+import cypherdesigns.gamestudio.crewz.ui.map.MemberLocation
 import cypherdesigns.gamestudio.crewz.ui.memberlist.CrewMember
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,7 +26,48 @@ class CrewViewModel : ViewModel() {
 
     private val _markerColorName = MutableStateFlow("red")
     val markerColorName: StateFlow<String> = _markerColorName.asStateFlow()
+    // NEW: A list of crews available to join
+    private val _availableCrews = MutableStateFlow<List<CrewInfo>>(emptyList())
+    val availableCrews: StateFlow<List<CrewInfo>> = _availableCrews.asStateFlow()
 
+    private val _crewLocations = MutableStateFlow<List<MemberLocation>>(emptyList())
+    val crewLocations: StateFlow<List<MemberLocation>> = _crewLocations.asStateFlow()
+
+    // ----------------------------------------------------
+    // Observing All Crews
+    // ----------------------------------------------------
+    fun observeAllCrews() {
+        // This function calls a new method in CrewRepository that listens
+        // to the entire "crews" node and returns a list of CrewInfo(id,name).
+        crewRepository.observeAllCrews { crewList ->
+            _availableCrews.value = crewList
+        }
+    }
+
+    // ----------------------------------------------------
+    // Creating a new crew
+    // ----------------------------------------------------
+    /**
+     * Create a new crew in Firebase, set "ownerId" to the given user,
+     * and return the newly generated crewId to the callback.
+     */
+    fun createCrew(
+        crewName: String,
+        ownerUserId: String,
+        onSuccess: (String) -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            crewRepository.createCrew(crewName, ownerUserId,
+                onSuccess = { newCrewId ->
+                    onSuccess(newCrewId)
+                },
+                onFailure = { error ->
+                    onFailure(error)
+                }
+            )
+        }
+    }
     // ----------------------------------------------------
     // Crew Membership
     // ----------------------------------------------------
@@ -53,6 +96,9 @@ class CrewViewModel : ViewModel() {
     // Marker color & location sharing
     // ----------------------------------------------------
 
+    /**
+     * Listen for changes to markerColor and locationSharingEnabled in real-time.
+     */
     fun observeMarkerColorAndLocationSharing(crewId: String, userId: String) {
         crewRepository.observeMarkerColorAndLocationSharing(
             crewId,
@@ -66,27 +112,52 @@ class CrewViewModel : ViewModel() {
         )
     }
 
+    /**
+     * Observe user details in the crew node (we specifically use it to track locationSharingEnabled).
+     */
     fun observeUserDetails(crewId: String, userId: String) {
         crewRepository.observeUserDetails(crewId, userId) { enabled ->
             _isLocationSharingEnabled.value = enabled
         }
     }
 
+    /**
+     * Example convenience function to change the marker color.
+     * Internally calls the unified updateCrewUserInfo(...) with a Map of fields to update.
+     */
     fun updateMarkerColor(crewId: String, userId: String, colorName: String) {
-        crewRepository.updateMarkerColor(
-            crewId,
-            userId,
-            colorName,
-            _isLocationSharingEnabled.value
+        // We can also preserve the user's current location sharing setting
+        // or pass in separate arguments, whichever you prefer.
+        updateCrewUserInfo(
+            crewId = crewId,
+            userId = userId,
+            updates = mapOf(
+                "markerColor" to colorName,
+                // Optionally also update locationSharingEnabled at the same time
+                "locationSharingEnabled" to _isLocationSharingEnabled.value
+            )
         )
     }
 
+    /**
+     * Toggle location sharing by building the appropriate Map
+     * and then calling updateCrewUserInfo.
+     */
     fun toggleLocationSharing(crewId: String, userId: String, isEnabled: Boolean) {
-        crewRepository.updateLocationSharing(crewId, userId, isEnabled) { success ->
-            if (success) {
+        // Notice we no longer call crewRepository.updateLocationSharing,
+        // we just rely on updateCrewUserInfo with a single field
+        updateCrewUserInfo(
+            crewId = crewId,
+            userId = userId,
+            updates = mapOf("locationSharingEnabled" to isEnabled),
+            onSuccess = {
+                // If the update was successful, reflect in local state
                 _isLocationSharingEnabled.value = isEnabled
+            },
+            onFailure = {
+                println("toggleLocationSharing failed: $it")
             }
-        }
+        )
     }
 
     // ----------------------------------------------------
@@ -105,6 +176,10 @@ class CrewViewModel : ViewModel() {
     // Update user data in the "crews" node
     // ----------------------------------------------------
 
+    /**
+     * If you want a single call for initially creating or overwriting
+     * a user in the crew node, you can do it here by building the default map:
+     */
     fun updateCrewMemberInCrewNode(
         crewId: String,
         userId: String,
@@ -113,11 +188,25 @@ class CrewViewModel : ViewModel() {
         lastName: String,
         email: String
     ) {
-        crewRepository.updateCrewMemberInCrewNode(
-            crewId, userId, userName, firstName, lastName, email
+        // Instead of calling a specialized repository function,
+        // just call updateCrewUserInfo with all fields:
+        updateCrewUserInfo(
+            crewId = crewId,
+            userId = userId,
+            updates = mapOf(
+                "userName" to userName,
+                "firstName" to firstName,
+                "lastName" to lastName,
+                "email" to email,
+                "markerColor" to "red",
+                "locationSharingEnabled" to false
+            )
         )
     }
 
+    /**
+     * A single method for updating arbitrary fields in /crews/{crewId}/members/{userId}.
+     */
     fun updateCrewUserInfo(
         crewId: String,
         userId: String,
@@ -127,8 +216,33 @@ class CrewViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             crewRepository.updateCrewUserInfo(
-                crewId, userId, updates, onSuccess, onFailure
+                crewId = crewId,
+                userId = userId,
+                updates = updates,
+                onSuccess = onSuccess,
+                onFailure = onFailure
             )
         }
     }
+    fun observeCrewLocations(crewId: String) {
+        crewRepository.observeCrewLocations(
+            crewId = crewId,
+            onLocations = { rawList ->
+                // Convert each map to a MemberLocation
+                val newList = rawList.mapNotNull { mapData ->
+                    val userName = mapData["userName"] as? String ?: return@mapNotNull null
+                    val markerColor = mapData["markerColor"] as? String ?: "red"
+                    val lat = mapData["latitude"] as? Double ?: 0.0
+                    val lng = mapData["longitude"] as? Double ?: 0.0
+                    MemberLocation(userName, lat, lng, markerColor)
+                }
+                _crewLocations.value = newList
+            },
+            onError = { error ->
+                println("observeCrewLocations error: $error")
+                // Optionally handle errors
+            }
+        )
+    }
+
 }

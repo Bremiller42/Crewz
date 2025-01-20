@@ -39,6 +39,7 @@ fun UploadImageScreen(
 ) {
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     val context = LocalContext.current
+    val crewId by userViewModel.currentCrewId.collectAsState()  // <-- collect as state
 
     val buttonColors = ButtonDefaults.buttonColors(
         containerColor = MaterialTheme.colorScheme.primary,
@@ -80,10 +81,10 @@ fun UploadImageScreen(
                         val uploaderName = userViewModel.cachedFirstName ?: "Unknown User"
                         if (uploadedUrl != null) {
                             saveImageUrlToDatabase(
+                                crewId,
                                 uploadedUrl,
                                 uploaderName,
                                 galleryViewModel,
-                                userViewModel
                             )
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(context, "Image Uploaded", Toast.LENGTH_SHORT).show()
@@ -118,11 +119,11 @@ suspend fun uploadImage(storageReference: StorageReference, uri: Uri): String? {
 }
 
 fun saveImageUrlToDatabase(
+    crewId: String?,
     url: String,
     uploaderName: String,
-    galleryViewModel: GalleryViewModel,
-    userViewModel: UserViewModel
+    galleryViewModel: GalleryViewModel
 ) {
-    val crewId = userViewModel.currentCrewId.value ?: return
+    if (crewId == null) return
     galleryViewModel.uploadImage(crewId, url, uploaderName)
 }

@@ -369,24 +369,30 @@ fun AppNavigation() {
                             userViewModel = userViewModel,
                             crewViewModel = crewViewModel,
                             onCrewSelected = { selectedCrewId ->
-                                // Update the user node in /users
+                                // 1) Update /users/{userId} node
                                 userViewModel.updateCrewId(selectedCrewId)
                                 userViewModel.updateUserInfoInUserNode(
-                                    selectedCrewId,
-                                    userViewModel.cachedUserName ?: "Unknown User",
-                                    userViewModel.cachedFirstName ?: "Unknown First",
-                                    userViewModel.cachedLastName ?: "Unknown Last",
-                                    userViewModel.cachedEmail ?: "Unknown Email"
-                                )
-                                // Update the crew node in /crews
-                                crewViewModel.updateCrewMemberInCrewNode(
                                     crewId = selectedCrewId,
-                                    userId = userViewModel.currentUserId ?: return@CrewSelectionScreen,
                                     userName = userViewModel.cachedUserName ?: "Unknown User",
                                     firstName = userViewModel.cachedFirstName ?: "Unknown First",
-                                    lastName = userViewModel.cachedLastName ?: "Unknown Last",
-                                    email = userViewModel.cachedEmail ?: "Unknown Email"
+                                    lastName  = userViewModel.cachedLastName  ?: "Unknown Last",
+                                    email     = userViewModel.cachedEmail     ?: "Unknown Email"
                                 )
+
+                                // 2) Update /crews/{crewId}/members/{userId} node
+                                crewViewModel.updateCrewUserInfo(
+                                    crewId = selectedCrewId,
+                                    userId = userViewModel.currentUserId ?: return@CrewSelectionScreen,
+                                    updates = mapOf(
+                                        "userName" to (userViewModel.cachedUserName ?: "Unknown User"),
+                                        "firstName" to (userViewModel.cachedFirstName ?: "Unknown First"),
+                                        "lastName"  to (userViewModel.cachedLastName  ?: "Unknown Last"),
+                                        "email"     to (userViewModel.cachedEmail     ?: "Unknown Email"),
+                                        "markerColor" to "red",
+                                        "locationSharingEnabled" to false
+                                    )
+                                )
+
                                 navController.navigate("home") {
                                     popUpTo("crewSelection") { inclusive = true }
                                 }

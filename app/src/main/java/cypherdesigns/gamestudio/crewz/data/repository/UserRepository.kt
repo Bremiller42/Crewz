@@ -18,6 +18,10 @@ class UserRepository {
     var cachedUserEmail: String? = null
         private set
 
+    // ---------------------------------------------------------------------
+    // READ METHODS
+    // ---------------------------------------------------------------------
+
     /**
      * Check if userName is unique across /users
      */
@@ -75,24 +79,48 @@ class UserRepository {
             })
     }
 
+    // ---------------------------------------------------------------------
+    // WRITE METHODS
+    // ---------------------------------------------------------------------
+
     /**
-     * Update /users/{userId}/crewId
+     * A single flexible method for updating any fields in /users/{userId}.
+     * This is used internally by any convenience methods, or directly by callers.
      */
-    fun updateUserCrewId(userId: String, crewId: String) {
-        database.getReference("users")
-            .child(userId)
-            .child("crewId")
-            .setValue(crewId)
-            .addOnSuccessListener {
-                println("updateUserCrewId success -> crew=$crewId for user=$userId")
-            }
-            .addOnFailureListener {
-                println("updateUserCrewId error: ${it.message}")
+    fun updateGlobalUserInfo(
+        userId: String,
+        updates: Map<String, Any>,
+        onSuccess: () -> Unit = {},
+        onFailure: (String) -> Unit = {}
+    ) {
+        val userRef = database.getReference("users/$userId")
+        userRef.updateChildren(updates)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { e ->
+                onFailure(e.message ?: "Unknown error updating user info for $userId.")
             }
     }
 
     /**
-     * Update /users/{userId} with new user fields
+     * Convenience method to update the "crewId" field for a user in /users/{userId}.
+     * Under the hood, calls updateGlobalUserInfo with a single field map.
+     */
+    fun updateUserCrewId(userId: String, crewId: String) {
+        updateGlobalUserInfo(
+            userId,
+            updates = mapOf("crewId" to crewId),
+            onSuccess = {
+                println("updateUserCrewId success -> crew=$crewId for user=$userId")
+            },
+            onFailure = {
+                println("updateUserCrewId error: $it")
+            }
+        )
+    }
+
+    /**
+     * Convenience method to update userName, firstName, lastName, email, and crewId
+     * for a user in /users/{userId}.
      */
     fun updateUserInfoInUserNode(
         userId: String,
@@ -102,7 +130,6 @@ class UserRepository {
         email: String,
         crewId: String
     ) {
-        val ref = database.getReference("users").child(userId)
         val updates = mapOf(
             "userName" to userName,
             "firstName" to firstName,
@@ -110,31 +137,15 @@ class UserRepository {
             "email" to email,
             "crewId" to crewId
         )
-        ref.setValue(updates)
-            .addOnSuccessListener {
+        updateGlobalUserInfo(
+            userId,
+            updates,
+            onSuccess = {
                 println("updateUserInfoInUserNode success for $userId")
+            },
+            onFailure = {
+                println("updateUserInfoInUserNode failure: $it")
             }
-            .addOnFailureListener {
-                println("updateUserInfoInUserNode failure: ${it.message}")
-            }
-    }
-
-    /**
-     * Update arbitrary fields in /users/{userId}
-     */
-    fun updateGlobalUserInfo(
-        userId: String,
-        updates: Map<String, Any>,
-        onSuccess: () -> Unit,
-        onFailure: (String) -> Unit
-    ) {
-        val userRef = database.getReference("users/$userId")
-        userRef.updateChildren(updates)
-            .addOnSuccessListener {
-                onSuccess()
-            }
-            .addOnFailureListener { e ->
-                onFailure(e.message ?: "Unknown error updating user info.")
-            }
+        )
     }
 }

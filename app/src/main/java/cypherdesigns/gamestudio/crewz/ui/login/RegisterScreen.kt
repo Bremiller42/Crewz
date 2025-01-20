@@ -39,7 +39,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.FirebaseDatabase
 import cypherdesigns.gamestudio.crewz.R
 import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 
@@ -58,7 +57,6 @@ fun RegisterScreen(
     val lastName = rememberSaveable { mutableStateOf("") }
 
     val auth = FirebaseAuth.getInstance()
-    val database = FirebaseDatabase.getInstance().reference
 
     var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
 
@@ -186,38 +184,30 @@ fun RegisterScreen(
                         return@Button
                     }
 
-                    // Check username uniqueness in /users via UserViewModel
+                    // 1) Check if username is unique in /users.
                     viewModel.checkUsernameUnique(userName.value) { isUnique ->
                         if (isUnique) {
+                            // 2) Create user via Firebase Auth
                             auth.createUserWithEmailAndPassword(email.value, password.value)
                                 .addOnCompleteListener { task ->
                                     if (task.isSuccessful) {
                                         val userId = auth.currentUser?.uid
-                                        val userMap = mapOf(
-                                            "userName" to userName.value,
-                                            "firstName" to firstName.value,
-                                            "lastName" to lastName.value,
-                                            "email" to email.value,
-                                            "crewId" to "" // not assigned to a crew yet
-                                        )
-
                                         if (userId != null) {
-                                            database.child("users").child(userId).setValue(userMap)
-                                                .addOnSuccessListener {
-                                                    Toast.makeText(
-                                                        context,
-                                                        "Account created successfully",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                    onRegisterSuccess()
-                                                }
-                                                .addOnFailureListener { e ->
-                                                    Toast.makeText(
-                                                        context,
-                                                        "Error saving user: ${e.message}",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                }
+                                            // 3) Use ViewModel to populate user fields in /users
+                                            //    We set crewId = "" to show they're not assigned to a crew yet.
+                                            viewModel.updateUserInfoInUserNode(
+                                                crewId = "",
+                                                userName = userName.value,
+                                                firstName = firstName.value,
+                                                lastName = lastName.value,
+                                                email = email.value
+                                            )
+                                            Toast.makeText(
+                                                context,
+                                                "Account created successfully",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                            onRegisterSuccess()
                                         }
                                     } else {
                                         Toast.makeText(

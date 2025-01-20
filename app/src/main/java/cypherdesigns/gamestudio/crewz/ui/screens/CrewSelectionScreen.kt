@@ -19,10 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
 import cypherdesigns.gamestudio.crewz.R
 import cypherdesigns.gamestudio.crewz.viewmodel.CrewViewModel
 import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
@@ -36,28 +32,17 @@ fun CrewSelectionScreen(
     onMenuClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val database = FirebaseDatabase.getInstance().getReference("crews")
 
-    var crews by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    // Observe a list of all crews from the CrewViewModel
+    val crews by crewViewModel.availableCrews.collectAsState()
+
+    // Local state for the new crew name & dialog
     var newCrewName by remember { mutableStateOf("") }
     var showCreateCrewDialog by remember { mutableStateOf(false) }
 
-    DisposableEffect(Unit) {
-        val crewsListener = database.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                crews = snapshot.children.mapNotNull { crew ->
-                    val crewId = crew.key
-                    val name = crew.child("name").getValue(String::class.java)
-                    if (crewId != null && name != null) Pair(crewId, name) else null
-                }
-            }
-            override fun onCancelled(error: DatabaseError) {
-                println("Failed to fetch crews: ${error.message}")
-            }
-        })
-        onDispose {
-            database.removeEventListener(crewsListener)
-        }
+    // 1) Start observing all crews when this composable appears
+    LaunchedEffect(Unit) {
+        crewViewModel.observeAllCrews()
     }
 
     Scaffold(
@@ -81,18 +66,20 @@ fun CrewSelectionScreen(
             }
         }
     ) { paddingValues ->
+        // 2) Display the list of existing crews
         LazyColumn(modifier = Modifier.padding(paddingValues)) {
-            items(crews) { (crewId, name) ->
+            items(crews) { crewInfo ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
                         .clickable {
-                            onCrewSelected(crewId)
+                            // When user clicks a crew, we pass that ID upstream
+                            onCrewSelected(crewInfo.id)
                         }
                 ) {
                     Text(
-                        text = name,
+                        text = crewInfo.name,
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(modifier = Modifier.weight(1f))
@@ -105,23 +92,31 @@ fun CrewSelectionScreen(
             }
         }
 
+        // 3) If user clicks FAB, show a dialog to create a new crew
         if (showCreateCrewDialog) {
             CreateCrewDialog(
                 newCrewName = newCrewName,
                 onCrewNameChange = { newCrewName = it },
                 onCreateClick = {
                     if (newCrewName.isNotBlank()) {
-                        val crewId = database.push().key ?: return@CreateCrewDialog
                         val currentUserId = userViewModel.currentUserId
                         if (currentUserId != null) {
-                            database.child(crewId).setValue(
-                                mapOf(
-                                    "name" to newCrewName,
-                                    "ownerId" to currentUserId
-                                )
+                            crewViewModel.createCrew(
+                                crewName = newCrewName,
+                                ownerUserId = currentUserId,
+                                onSuccess = { newCrewId ->
+                                    // Crew created successfully
+                                    newCrewName = ""
+                                    showCreateCrewDialog = false
+                                },
+                                onFailure = { error ->
+                                    Toast.makeText(
+                                        context,
+                                        "Failed to create crew: $error",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             )
-                            newCrewName = ""
-                            showCreateCrewDialog = false
                         } else {
                             Toast.makeText(
                                 context,

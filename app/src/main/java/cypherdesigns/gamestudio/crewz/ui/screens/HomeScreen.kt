@@ -17,7 +17,7 @@ fun HomeScreen(
     onSettingsClick: () -> Unit,
     onMenuClick: () -> Unit
 ) {
-    val crewId = userViewModel.currentCrewId.value
+    val crewId by userViewModel.currentCrewId.collectAsState()
 
     // Observe crew members so the list is up to date
     LaunchedEffect(crewId) {
