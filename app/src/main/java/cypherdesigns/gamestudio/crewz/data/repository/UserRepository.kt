@@ -1,17 +1,14 @@
 package cypherdesigns.gamestudio.crewz.data.repository
 
-import coil.compose.AsyncImagePainter
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import com.google.firebase.firestore.FirebaseFirestore
-import cypherdesigns.gamestudio.crewz.ui.memberlist.CrewMember
 
 class UserRepository {
-    private val firestore = FirebaseFirestore.getInstance()
+
     private val database = FirebaseDatabase.getInstance()
-    private val crewListeners = mutableMapOf<String, ValueEventListener>()
+
     var cachedUserName: String? = null
         private set
     var cachedUserFirstName: String? = null
@@ -20,323 +17,124 @@ class UserRepository {
         private set
     var cachedUserEmail: String? = null
         private set
-    var cachedLocationSharingEnabled: Boolean = false
-        private set
 
-    fun observeMarkerColorAndLocationSharing(
-        crewId: String, // Include crewId for scoped access
-        userId: String,
-        onMarkerColorUpdated: (String) -> Unit,
-        onLocationSharingUpdated: (Boolean) -> Unit
-    ) {
-        database.getReference("crews").child(crewId).child("members").child(userId).apply {
-            // Observe marker color
-            child("markerColor").addValueEventListener(object : ValueEventListener {
+    /**
+     * Check if userName is unique across /users
+     */
+    fun isUsernameUnique(userName: String, onResult: (Boolean) -> Unit) {
+        database.getReference("users")
+            .orderByChild("userName")
+            .equalTo(userName)
+            .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    val colorName = snapshot.getValue(String::class.java) ?: "red"
-                    onMarkerColorUpdated(colorName)
+                    onResult(!snapshot.exists()) // True if no node found
                 }
-
                 override fun onCancelled(error: DatabaseError) {
-                    println("Error observing marker color: ${error.message}")
+                    println("isUsernameUnique: error: ${error.message}")
+                    onResult(false)
                 }
             })
-
-            // Observe location sharing status
-            child("locationSharingEnabled").addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val isLocationSharingEnabled = snapshot.getValue(Boolean::class.java) ?: false
-                    onLocationSharingUpdated(isLocationSharingEnabled)
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    println("Error observing location sharing: ${error.message}")
-                }
-            })
-        }
     }
 
-    fun updateMarkerColor(
-        crewId: String, // Include crewId for scoped updates
-        userId: String,
-        colorName: String,
-        isLocationSharingEnabled: Boolean
-    ) {
-        database.getReference("crews").child(crewId).child("members").child(userId).apply {
-            // Update marker color
-            child("markerColor").setValue(colorName)
-                .addOnSuccessListener {
-                    println("Marker color updated to: $colorName")
-                }
-                .addOnFailureListener { exception ->
-                    println("Failed to update marker color: ${exception.message}")
-                }
-
-            // Update location sharing status
-            child("locationSharingEnabled").setValue(isLocationSharingEnabled)
-                .addOnSuccessListener {
-                    println("Location sharing status updated to: $isLocationSharingEnabled")
-                }
-                .addOnFailureListener { exception ->
-                    println("Failed to update location sharing: ${exception.message}")
-                }
-        }
-    }
-
+    /**
+     * Fetch user details from /users/{userId} and cache them.
+     */
     fun fetchAndCacheUserDetails(userId: String) {
-        println("Fetching user details for userId: $userId")
-        database.getReference("users").child(userId).get()
+        database.getReference("users")
+            .child(userId)
+            .get()
             .addOnSuccessListener { snapshot ->
                 if (snapshot.exists()) {
                     cachedUserName = snapshot.child("userName").getValue(String::class.java)
                     cachedUserFirstName = snapshot.child("firstName").getValue(String::class.java)
                     cachedUserLastName = snapshot.child("lastName").getValue(String::class.java)
                     cachedUserEmail = snapshot.child("email").getValue(String::class.java)
-                    println("Cached user details for $userId: FirstName=$cachedUserFirstName")
                 } else {
-                    println("No user details found for userId: $userId")
+                    println("No user details found for $userId")
                 }
             }
             .addOnFailureListener {
-                println("Failed to fetch user details: ${it.message}")
+                println("fetchAndCacheUserDetails failed: ${it.message}")
             }
     }
 
-    fun observeUserDetails(crewId: String, userId: String, onDetailsUpdated: (Boolean) -> Unit) {
-        database.getReference("crews").child(crewId).child("members").child(userId)
-            .addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val isLocationSharingEnabled =
-                        snapshot.child("locationSharingEnabled").getValue(Boolean::class.java)
-                            ?: false
-                    cachedLocationSharingEnabled = isLocationSharingEnabled
-                    onDetailsUpdated(isLocationSharingEnabled)
-                    println("Real-time update: LocationSharingEnabled=$isLocationSharingEnabled for $userId")
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    println("Error observing user details: ${error.message}")
-                }
-            })
-    }
-
-    fun updateLocationSharing(
-        crewId: String,
-        userId: String,
-        isEnabled: Boolean,
-        onComplete: (Boolean) -> Unit
-    ) {
-        database.getReference("crews").child(crewId).child("members").child(userId)
-            .child("locationSharingEnabled")
-            .setValue(isEnabled)
-            .addOnSuccessListener {
-                cachedLocationSharingEnabled = isEnabled
-                println("Location Sharing updated successfully: $isEnabled")
-                onComplete(true)
-            }
-            .addOnFailureListener { exception ->
-                println("Failed to update location sharing: ${exception.message}")
-                onComplete(false)
-            }
-    }
-
+    /**
+     * Return crewId from /users/{userId}/crewId
+     */
     fun getUserCrewId(userId: String, onResult: (String) -> Unit) {
-        database.getReference("users").child(userId).child("crewId")
+        database.getReference("users")
+            .child(userId)
+            .child("crewId")
             .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     onResult(snapshot.getValue(String::class.java) ?: "")
                 }
-
                 override fun onCancelled(error: DatabaseError) {
-                    println("Failed to fetch crew Id: ${error.message}")
+                    println("getUserCrewId error: ${error.message}")
                 }
             })
     }
 
-    fun getUserCrewName(crewId: String, onResult: (String) -> Unit) {
-        database.getReference("crews").child(crewId).child("name")
-            .addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    onResult(snapshot.getValue(String::class.java) ?: "")
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    println("Failed to fetch crew Id: ${error.message}")
-                }
-            })
-    }
-
+    /**
+     * Update /users/{userId}/crewId
+     */
     fun updateUserCrewId(userId: String, crewId: String) {
-        // Update global user data
-        database.getReference("users").child(userId).child("crewId").setValue(crewId)
-            .addOnSuccessListener { println("Crew ID updated successfully for userId: $userId") }
-            .addOnFailureListener { println("Error updating Crew ID: ${it.message}") }
+        database.getReference("users")
+            .child(userId)
+            .child("crewId")
+            .setValue(crewId)
+            .addOnSuccessListener {
+                println("updateUserCrewId success -> crew=$crewId for user=$userId")
+            }
+            .addOnFailureListener {
+                println("updateUserCrewId error: ${it.message}")
+            }
     }
 
-    fun updateUserDetails(
-        crewId: String,
+    /**
+     * Update /users/{userId} with new user fields
+     */
+    fun updateUserInfoInUserNode(
         userId: String,
         userName: String,
         firstName: String,
         lastName: String,
-        email: String
+        email: String,
+        crewId: String
     ) {
-        // Update user details in the crew's members node
-        database.getReference("crews").child(crewId).child("members").child(userId).setValue(
-            mapOf(
-                "userName" to userName,
-                "firstName" to firstName,
-                "lastName" to lastName,
-                "email" to email,
-                "markerColor" to "red", // Default value
-                "locationSharingEnabled" to false // Default value
-            )
-        ).addOnSuccessListener {
-            println("User details successfully added to crew $crewId")
-        }.addOnFailureListener {
-            println("Error adding user details to crew $crewId: ${it.message}")
-        }
-
-        // Update global user data
-        database.getReference("users").child(userId).setValue(
-            mapOf(
-                "userName" to userName,
-                "crewId" to crewId,
-                "firstName" to firstName,
-                "lastName" to lastName,
-                "email" to email
-            )
-        ).addOnSuccessListener {
-            println("Global user details updated successfully for userId: $userId")
-        }.addOnFailureListener {
-            println("Error updating global user details: ${it.message}")
-        }
-    }
-
-
-    fun observeCrewMembers(crewId: String, onResult: (List<CrewMember>) -> Unit) {
-        if (crewId.isEmpty()) {
-            onResult(emptyList())
-            return
-        }
-
-        val crewRef = database.getReference("crews/$crewId/members")
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val members = snapshot.children.mapNotNull { child ->
-                    val name = child.child("userName").getValue(String::class.java) ?: "Unknown"
-                    val online = child.child("online").getValue(Boolean::class.java) ?: false
-                    CrewMember(name, online)
-                }
-                onResult(members)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                println("ObserveCrewMembers: Failed to fetch crew members: ${error.message}")
-                onResult(emptyList())
-            }
-        }
-        crewRef.addValueEventListener(listener)
-        crewListeners[crewId] = listener
-    }
-
-
-    fun cleanupCrewMembersListener(crewId: String) {
-        crewListeners[crewId]?.let {
-            database.getReference("crews/$crewId/members").removeEventListener(it)
-        }
-        crewListeners.remove(crewId)
-    }
-
-
-    fun updateOnlineStatus(crewId: String, userId: String, isOnline: Boolean) {
-        val userRef = database.getReference("crews/$crewId/members/$userId/online")
-
-        userRef.setValue(isOnline) // Set current status
+        val ref = database.getReference("users").child(userId)
+        val updates = mapOf(
+            "userName" to userName,
+            "firstName" to firstName,
+            "lastName" to lastName,
+            "email" to email,
+            "crewId" to crewId
+        )
+        ref.setValue(updates)
             .addOnSuccessListener {
-                println("UpdateOnlineStatus: User $userId online status updated to $isOnline")
+                println("updateUserInfoInUserNode success for $userId")
             }
-            .addOnFailureListener { exception ->
-                println("UpdateOnlineStatus: Failed to update online status for $userId: ${exception.message}")
+            .addOnFailureListener {
+                println("updateUserInfoInUserNode failure: ${it.message}")
             }
-
-        if (isOnline) {
-            // Automatically set user offline on disconnect
-            userRef.onDisconnect().setValue(false)
-        }
     }
 
-    fun observeConnectionStatus(crewId: String, userId: String) {
-        val connectedRef = database.getReference(".info/connected")
-        connectedRef.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val isConnected = snapshot.getValue(Boolean::class.java) ?: false
-                if (isConnected) {
-                    println("ObserveConnection: User $userId is connected")
-                    updateOnlineStatus(crewId, userId, true)
-                } else {
-                    println("ObserveConnection: User $userId is disconnected")
-                }
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                println("ObserveConnection: Failed to observe connection status: ${error.message}")
-            }
-        })
-    }
-
-    fun isUsernameUnique(userName: String, onResult: (Boolean) -> Unit) {
-        database.getReference("users").orderByChild("userName").equalTo(userName)
-            .addListenerForSingleValueEvent(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    onResult(!snapshot.exists()) // True if username is unique
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    println("UserNameUniqueCheck: Error checking username uniqueness: ${error.message}")
-                    onResult(false) // Treat as not unique if error occurs
-                }
-            })
-    }
-
+    /**
+     * Update arbitrary fields in /users/{userId}
+     */
     fun updateGlobalUserInfo(
         userId: String,
         updates: Map<String, Any>,
         onSuccess: () -> Unit,
         onFailure: (String) -> Unit
     ) {
-        val userRef = FirebaseDatabase.getInstance().getReference("users/$userId")
-
+        val userRef = database.getReference("users/$userId")
         userRef.updateChildren(updates)
             .addOnSuccessListener {
-                println("UpdateGlobal: User Fields updated successfully for $userId")
                 onSuccess()
             }
-            .addOnFailureListener { error ->
-                println("UpdateGlobal: Error updating user fields for $userId: ${error.message}")
-                onFailure(error.message ?: "Unknown Error")
+            .addOnFailureListener { e ->
+                onFailure(e.message ?: "Unknown error updating user info.")
             }
     }
-
-    fun updateCrewUserInfo(
-        crewId: String,
-        userId: String,
-        updates: Map<String, Any>,
-        onSuccess: () -> Unit,
-        onFailure: (String) -> Unit
-    ) {
-        val crewRef = FirebaseDatabase.getInstance().getReference("crews/$crewId/members/$userId")
-
-        crewRef.updateChildren(updates)
-            .addOnSuccessListener {
-                println("UpdateCrewMember: User Fields updated successfully for $userId")
-                onSuccess()
-            }
-            .addOnFailureListener { error ->
-                println("UpdateCrewMember: Error updating user fields for $userId: ${error.message}")
-                onFailure(error.message ?: "Unknown Error")
-            }
-
-    }
-
 }

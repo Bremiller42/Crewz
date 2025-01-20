@@ -43,9 +43,12 @@ import com.google.firebase.database.FirebaseDatabase
 import cypherdesigns.gamestudio.crewz.R
 import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 
-
 @Composable
-fun RegisterScreen(viewModel: UserViewModel, onRegisterSuccess: () -> Unit, onBackToLogin: () -> Unit) {
+fun RegisterScreen(
+    viewModel: UserViewModel,
+    onRegisterSuccess: () -> Unit,
+    onBackToLogin: () -> Unit
+) {
 
     val context = LocalContext.current
     val userName = rememberSaveable { mutableStateOf("") }
@@ -112,6 +115,7 @@ fun RegisterScreen(viewModel: UserViewModel, onRegisterSuccess: () -> Unit, onBa
                 modifier = Modifier.fillMaxWidth(),
                 colors = textFieldColors
             )
+
             OutlinedTextField(
                 value = firstName.value,
                 onValueChange = { firstName.value = it },
@@ -138,7 +142,6 @@ fun RegisterScreen(viewModel: UserViewModel, onRegisterSuccess: () -> Unit, onBa
                 label = { Text("Email") },
                 modifier = Modifier.fillMaxWidth(),
                 colors = textFieldColors
-
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -152,11 +155,10 @@ fun RegisterScreen(viewModel: UserViewModel, onRegisterSuccess: () -> Unit, onBa
                 visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     val image = if (isPasswordVisible) {
-                        painterResource(id = R.drawable.ic_visibility_off) // Icon for visible
+                        painterResource(id = R.drawable.ic_visibility_off)
                     } else {
-                        painterResource(id = R.drawable.ic_visibility) // Icon for hidden
+                        painterResource(id = R.drawable.ic_visibility)
                     }
-
                     val description = if (isPasswordVisible) {
                         stringResource(R.string.hide_password)
                     } else {
@@ -184,6 +186,7 @@ fun RegisterScreen(viewModel: UserViewModel, onRegisterSuccess: () -> Unit, onBa
                         return@Button
                     }
 
+                    // Check username uniqueness in /users via UserViewModel
                     viewModel.checkUsernameUnique(userName.value) { isUnique ->
                         if (isUnique) {
                             auth.createUserWithEmailAndPassword(email.value, password.value)
@@ -195,7 +198,7 @@ fun RegisterScreen(viewModel: UserViewModel, onRegisterSuccess: () -> Unit, onBa
                                             "firstName" to firstName.value,
                                             "lastName" to lastName.value,
                                             "email" to email.value,
-                                            "crewId" to "" // User is not assigned to a crew yet
+                                            "crewId" to "" // not assigned to a crew yet
                                         )
 
                                         if (userId != null) {
@@ -248,5 +251,3 @@ fun RegisterScreen(viewModel: UserViewModel, onRegisterSuccess: () -> Unit, onBa
         }
     }
 }
-
-

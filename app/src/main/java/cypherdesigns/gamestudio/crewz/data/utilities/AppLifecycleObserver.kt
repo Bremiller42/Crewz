@@ -1,3 +1,4 @@
+// data.utilities.AppLifecycleObserver.kt
 package cypherdesigns.gamestudio.crewz.data.utilities
 
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -21,7 +22,8 @@ class AppLifecycleObserver(
     }
 
     private fun updateOnlineStatus(isOnline: Boolean) {
-        val userRef = FirebaseDatabase.getInstance().getReference("crews/$crewId/members/$userId/online")
+        val userRef = FirebaseDatabase.getInstance()
+            .getReference("crews/$crewId/members/$userId/online")
         userRef.setValue(isOnline).addOnSuccessListener {
             onStatusChange(isOnline)
         }.addOnFailureListener {

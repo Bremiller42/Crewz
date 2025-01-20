@@ -15,7 +15,10 @@ class MainActivity : FragmentActivity() {
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        System.setProperty("flogger.backend_factory", "com.google.common.flogger.backend.slf4j.Slf4jBackendFactory#getInstance")
+        System.setProperty(
+            "flogger.backend_factory",
+            "com.google.common.flogger.backend.slf4j.Slf4jBackendFactory#getInstance"
+        )
         enableEdgeToEdge()
         setContent {
             CrewzTheme(dynamicColor = false, darkTheme = true) {

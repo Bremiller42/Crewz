@@ -1,7 +1,7 @@
+// credentials for storing user login
 package cypherdesigns.gamestudio.crewz.data.credentials
 
 import android.content.Context
-import android.widget.Toast
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
@@ -10,7 +10,6 @@ fun saveCredentials(context: Context, email: String, password: String) {
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
 
-    // Initialize EncryptedSharedPreferences
     val sharedPreferences = EncryptedSharedPreferences.create(
         context,
         "user_credentials",
@@ -25,7 +24,7 @@ fun saveCredentials(context: Context, email: String, password: String) {
         .apply()
 }
 
-fun getCredentials(context: Context): Pair <String?, String?> {
+fun getCredentials(context: Context): Pair<String?, String?> {
     val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()

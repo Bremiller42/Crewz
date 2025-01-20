@@ -6,9 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -22,77 +20,60 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import cypherdesigns.gamestudio.crewz.ui.memberlist.CrewMember
-import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 import androidx.compose.ui.platform.LocalConfiguration
+import cypherdesigns.gamestudio.crewz.ui.memberlist.CrewMember
+import cypherdesigns.gamestudio.crewz.viewmodel.CrewViewModel
 
 @Composable
 fun CrewSidebar(
-    userViewModel: UserViewModel,
+    crewViewModel: CrewViewModel,
     onMemberClick: (CrewMember) -> Unit
 ) {
-
-    val crewMembers by userViewModel.crewMembers.collectAsState()
+    val crewMembers by crewViewModel.crewMembers.collectAsState()
 
     val onlineMembers = crewMembers.filter { it.online }
     val offlineMembers = crewMembers.filterNot { it.online }
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-    val sidebarWidth = screenWidth / 2 // Half of the screen width
+    val sidebarWidth = screenWidth / 2
 
     Column(
         modifier = Modifier
             .padding(16.dp)
             .background(MaterialTheme.colorScheme.background)
             .border(
-                width = 2.dp, // Border thickness
-                color = MaterialTheme.colorScheme.primary // Border color
+                width = 2.dp,
+                color = MaterialTheme.colorScheme.primary
             )
             .fillMaxHeight()
-            .verticalScroll(rememberScrollState()) // Enable scrolling
+            .verticalScroll(rememberScrollState())
             .width(sidebarWidth)
-            .padding(horizontal = 16.dp)
-            .padding(vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Text(
             "Members",
             style = MaterialTheme.typography.headlineMedium,
-//            color = MaterialTheme.colorScheme.primary,
             color = Color.White,
             textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxHeight(0.08f)
         )
+        Spacer(modifier = Modifier.height(8.dp))
 
-//        Text(
-//            "Online",
-//            style = MaterialTheme.typography.headlineSmall,
-//            color = MaterialTheme.colorScheme.primary
-//        )
-//        Spacer(modifier = Modifier.height(2.dp))
+        // Online
         onlineMembers.forEach { member ->
             Text(
                 text = member.userName,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .clickable { onMemberClick(member) }
-
+                modifier = Modifier.clickable { onMemberClick(member) }
             )
         }
-
         Spacer(modifier = Modifier.height(16.dp))
-//
-//        Text(
-//            "Offline",
-//            style = MaterialTheme.typography.headlineSmall,
-//            color = MaterialTheme.colorScheme.onBackground
-//        )
-        Spacer(modifier = Modifier.height(2.dp))
+
+        // Offline
         offlineMembers.forEach { member ->
             Text(
                 text = member.userName,
                 color = MaterialTheme.colorScheme.onBackground,
-
-                modifier = Modifier
-                    .clickable { onMemberClick(member) }
+                modifier = Modifier.clickable { onMemberClick(member) }
             )
         }
     }

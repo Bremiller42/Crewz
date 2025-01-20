@@ -1,7 +1,6 @@
 package cypherdesigns.gamestudio.crewz.ui
 
 import GalleryScreen
-import MapScreen
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
@@ -23,13 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -51,58 +43,71 @@ import cypherdesigns.gamestudio.crewz.ui.screens.ImageDetailScreen
 import cypherdesigns.gamestudio.crewz.ui.screens.SettingsScreen
 import cypherdesigns.gamestudio.crewz.ui.screens.UploadImageScreen
 import cypherdesigns.gamestudio.crewz.viewmodel.ChatViewModel
+import cypherdesigns.gamestudio.crewz.viewmodel.CrewViewModel
 import cypherdesigns.gamestudio.crewz.viewmodel.GalleryViewModel
 import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+
+    // Common bottom bar routes
     val bottomBarRoutes = listOf("home", "map", "chat", "gallery")
+
+    // Instantiate all needed ViewModels
     val chatViewModel: ChatViewModel = viewModel()
     val galleryViewModel: GalleryViewModel = viewModel()
     val userViewModel: UserViewModel = viewModel()
+    val crewViewModel: CrewViewModel = viewModel()
+
+    // Observe the user's crewId (stored in /users/{userId}/crewId)
     val crewId by userViewModel.currentCrewId.collectAsState()
     val userId = userViewModel.currentUserId
 
-
     val storageReference = FirebaseStorage.getInstance().reference
 
-    // Drawer state and coroutine scope
+    // Drawer state
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
 
+    // Once we know the crewId, observe crew-level data
     LaunchedEffect(crewId) {
-        crewId?.let { userViewModel.observeCrewMembers(it)
-            userViewModel.observeConnectionStatus(it, userViewModel.currentUserId ?: return@LaunchedEffect)
-        }
-        if (crewId != null && userId != null) {
-            val lifecycleObserver = AppLifecycleObserver(crewId!!, userId) { isOnline ->
-                println("User $userId is now ${if (isOnline) "online" else "offline"}")
+        crewId?.let { cId ->
+            if (userId != null) {
+                // Observe the crew's members and user connection status
+                crewViewModel.observeCrewMembers(cId)
+                crewViewModel.observeConnectionStatus(cId, userId)
             }
-            ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
-        }
 
+            // We can also attach a lifecycle observer that sets user online/offline
+            if (userId != null) {
+                val lifecycleObserver = AppLifecycleObserver(cId, userId) { isOnline ->
+                    println("User $userId is now ${if (isOnline) "online" else "offline"}")
+                }
+                ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
+            }
+        }
     }
 
-    // Collect the user statuses
-    val crewMembers by userViewModel.crewMembers.collectAsState()
+    // Collect the crew members from CrewViewModel
+    val crewMembers by crewViewModel.crewMembers.collectAsState()
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             Column(
-                modifier = Modifier
+                modifier = androidx.compose.ui.Modifier
                     .fillMaxHeight()
                     .padding(top = 85.dp)
-                    .padding(bottom = 50.dp) // Reserve space for the BottomNavigationBar
-                    .offset(x = -20.dp)
+                    .padding(bottom = 50.dp)
+                    .offset(x = (-20).dp)
             ) {
+                // Updated to use CrewViewModel
                 CrewSidebar(
-                    userViewModel = userViewModel,
+                    crewViewModel = crewViewModel,
                     onMemberClick = { member ->
                         println("Clicked on member: ${member.userName}")
                     }
@@ -120,24 +125,28 @@ fun AppNavigation() {
                 }
             }
         ) { innerPadding ->
-            Box(modifier = Modifier.fillMaxSize()) {
-                // Main Navigation Content
+            Box(modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
                 NavHost(
                     navController = navController,
                     startDestination = "login",
-                    modifier = Modifier.padding(innerPadding)
+                    modifier = androidx.compose.ui.Modifier.padding(innerPadding)
                 ) {
                     composable("login") {
-                        val context = LocalContext.current
                         LoginScreen(
                             viewModel = userViewModel,
                             onLoginSuccess = {
                                 val currentUserId = userViewModel.currentUserId
                                 if (currentUserId != null) {
-                                    userViewModel.fetchCrewId(currentUserId) { crewId ->
-                                        if (!crewId.isNullOrEmpty()) {
-                                            userViewModel.updateOnlineStatus(crewId, currentUserId, true)
-                                            userViewModel.observeCrewMembers(crewId)
+                                    // Once user logs in, we fetch the crewId from /users
+                                    userViewModel.fetchCrewId(currentUserId) { fetchedCrewId ->
+                                        if (!fetchedCrewId.isNullOrEmpty()) {
+                                            // Mark them online in the crew
+                                            crewViewModel.updateOnlineStatus(
+                                                fetchedCrewId,
+                                                currentUserId,
+                                                true
+                                            )
+                                            crewViewModel.observeCrewMembers(fetchedCrewId)
                                             navController.navigate("home") {
                                                 popUpTo("login") { inclusive = true }
                                             }
@@ -149,7 +158,7 @@ fun AppNavigation() {
                                     }
                                 } else {
                                     Toast.makeText(
-                                        context,
+                                        it,
                                         "Error: User not logged in",
                                         Toast.LENGTH_SHORT
                                     ).show()
@@ -174,43 +183,70 @@ fun AppNavigation() {
                             }
                         )
                     }
+
                     composable("home") {
-                        HomeScreen(
-                            viewModel = UserViewModel(),
-                            crewId = crewId!!,
+                        // We pass both userViewModel & crewViewModel
+                        if (crewId != null) {
+                            HomeScreen(
+                                userViewModel = userViewModel,
+                                crewViewModel = crewViewModel,
+                                onSettingsClick = { navController.navigate("settings") },
+                                onMenuClick = {
+                                    coroutineScope.launch {
+                                        drawerState.open()
+                                    }
+                                }
+                            )
+                        } else {
+                            // Edge case: crewId is null
+                            Box(
+                                modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+                                contentAlignment = androidx.compose.ui.Alignment.Center
+                            ) {
+                                Text("No crew selected. Please pick a crew.")
+                            }
+                        }
+                    }
+
+                    composable("map") {
+                        MapScreen(
+                            userViewModel = userViewModel,
+                            crewViewModel = crewViewModel,
                             onSettingsClick = { navController.navigate("settings") },
                             onMenuClick = {
                                 coroutineScope.launch { drawerState.open() }
                             }
                         )
                     }
-                    composable("map") {
-                        MapScreen(
-                            userViewModel = userViewModel,
-                            onSettingsClick = { navController.navigate("settings") },
-                            onMenuClick = {
-                                coroutineScope.launch { drawerState.open() }
-                            })
-                    }
+
                     composable("gallery") {
-                        GalleryScreen(
-                            viewModel = galleryViewModel,
-                            userViewModel = userViewModel,
-                            onNavigateToUploadScreen = { navController.navigate("upload") },
-                            onImageClick = { imageData ->
-                                navController.navigate(
-                                    "imageDetail?imageUrl=${Uri.encode(imageData.url)}&uploadedBy=${
-                                        Uri.encode(
-                                            imageData.uploadedBy
-                                        )
-                                    }"
-                                )
-                            },
-                            crewId = crewId!!,
-                            onSettingsClick = { navController.navigate("settings") },
-                            onMenuClick = {
-                                coroutineScope.launch { drawerState.open() }
-                            })
+                        if (crewId != null) {
+                            GalleryScreen(
+                                viewModel = galleryViewModel,
+                                userViewModel = userViewModel,
+                                crewId = crewId!!,
+                                onNavigateToUploadScreen = { navController.navigate("upload") },
+                                onImageClick = { imageData ->
+                                    navController.navigate(
+                                        "imageDetail?imageUrl=${Uri.encode(imageData.url)}&uploadedBy=${
+                                            Uri.encode(imageData.uploadedBy)
+                                        }"
+                                    )
+                                },
+                                onSettingsClick = { navController.navigate("settings") },
+                                onMenuClick = {
+                                    coroutineScope.launch { drawerState.open() }
+                                }
+                            )
+                        } else {
+                            // If crewId is null, user hasn't joined a crew yet
+                            Box(
+                                modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+                                contentAlignment = androidx.compose.ui.Alignment.Center
+                            ) {
+                                Text("Join a crew to view the gallery!")
+                            }
+                        }
                     }
                     composable(
                         route = "imageDetail?imageUrl={imageUrl}&uploadedBy={uploadedBy}",
@@ -219,17 +255,18 @@ fun AppNavigation() {
                             navArgument("uploadedBy") { type = NavType.StringType }
                         )
                     ) { backStackEntry ->
-                        val imageUrl = backStackEntry.arguments?.getString("imageUrl")
+                        val imageUrl =
+                            backStackEntry.arguments?.getString("imageUrl")
                         val uploadedBy =
-                            backStackEntry.arguments?.getString("uploadedBy")
-                                ?.let { Uri.decode(it) }
+                            backStackEntry.arguments?.getString("uploadedBy")?.let { Uri.decode(it) }
                         ImageDetailScreen(
                             imageUrl = imageUrl,
                             uploadedBy = uploadedBy,
                             onSettingsClick = { navController.navigate("settings") },
                             onMenuClick = {
                                 coroutineScope.launch { drawerState.open() }
-                            })
+                            }
+                        )
                     }
 
                     composable("upload") {
@@ -240,52 +277,79 @@ fun AppNavigation() {
                             onNavigateToGalleryScreen = { navController.navigate("gallery") }
                         )
                     }
+
                     composable("chat") {
-                        ChatroomListScreen(
-                            viewModel = chatViewModel,
-                            userViewModel = userViewModel,
-                            onChatroomSelected = { chatroomId ->
-                                navController.navigate("chatroom/$chatroomId")
-                            },
-                            crewId = crewId!!,
-                            onSettingsClick = { navController.navigate("settings") },
-                            onMenuClick = {
-                                coroutineScope.launch { drawerState.open() }
-                            })
+                        if (crewId != null) {
+                            ChatroomListScreen(
+                                viewModel = chatViewModel,
+                                crewViewModel = crewViewModel,
+                                userViewModel = userViewModel,
+                                crewId = crewId!!,
+                                onChatroomSelected = { chatroomId ->
+                                    navController.navigate("chatroom/$chatroomId")
+                                },
+                                onSettingsClick = { navController.navigate("settings") },
+                                onMenuClick = {
+                                    coroutineScope.launch { drawerState.open() }
+                                }
+                            )
+                        } else {
+                            Box(
+                                modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+                                contentAlignment = androidx.compose.ui.Alignment.Center
+                            ) {
+                                Text("No crew selected. Please join a crew to access chat.")
+                            }
+                        }
                     }
                     composable("chatroom/{chatroomId}") { backStackEntry ->
                         val chatroomId =
                             backStackEntry.arguments?.getString("chatroomId")
                                 ?: return@composable
-                        ChatroomScreen(
-                            viewModel = chatViewModel,
-                            userViewModel = userViewModel,
-                            crewId = crewId!!,
-                            chatroomId = chatroomId,
-                            onSettingsClick = { navController.navigate("settings") },
-                            onMenuClick = {
-                                coroutineScope.launch { drawerState.open() }
-                            })
+                        if (crewId != null) {
+                            ChatroomScreen(
+                                viewModel = chatViewModel,
+                                userViewModel = userViewModel,
+                                crewViewModel = crewViewModel,
+                                crewId = crewId!!,
+                                chatroomId = chatroomId,
+                                onSettingsClick = { navController.navigate("settings") },
+                                onMenuClick = {
+                                    coroutineScope.launch { drawerState.open() }
+                                }
+                            )
+                        } else {
+                            Box(
+                                modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+                                contentAlignment = androidx.compose.ui.Alignment.Center
+                            ) {
+                                Text("No crew selected. Please join a crew to chat.")
+                            }
+                        }
                     }
+
                     composable("settings") {
-                        if (crewId != null && userViewModel.currentUserId != null) {
+                        if (crewId != null && userId != null) {
                             SettingsScreen(
-                                viewModel = userViewModel,
-                                userId = userViewModel.currentUserId!!,
+                                userViewModel = userViewModel,
+                                crewViewModel = crewViewModel,
+                                userId = userId,
                                 crewId = crewId!!,
                                 onBack = { navController.popBackStack() },
                                 onMenuClick = {
                                     coroutineScope.launch { drawerState.open() }
-                                })
+                                }
+                            )
                         } else {
                             Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
+                                modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+                                contentAlignment = androidx.compose.ui.Alignment.Center
                             ) {
-                                Text("Unable to load settings. Missing required information.")
+                                Text("Unable to load settings. Missing required info.")
                             }
                         }
                     }
+
                     composable("checkCrew") {
                         LaunchedEffect(crewId) {
                             if (crewId.isNullOrEmpty()) {
@@ -299,16 +363,25 @@ fun AppNavigation() {
                             }
                         }
                     }
+
                     composable("crewSelection") {
                         CrewSelectionScreen(
                             userViewModel = userViewModel,
-                            onCrewSelected = { crewId ->
-                                // Update the crewId for the user
-                                userViewModel.updateCrewId(crewId)
-
-                                // Update user details in the crew's member list
-                                userViewModel.updateUserInformation(
-                                    crewId = crewId,
+                            crewViewModel = crewViewModel,
+                            onCrewSelected = { selectedCrewId ->
+                                // Update the user node in /users
+                                userViewModel.updateCrewId(selectedCrewId)
+                                userViewModel.updateUserInfoInUserNode(
+                                    selectedCrewId,
+                                    userViewModel.cachedUserName ?: "Unknown User",
+                                    userViewModel.cachedFirstName ?: "Unknown First",
+                                    userViewModel.cachedLastName ?: "Unknown Last",
+                                    userViewModel.cachedEmail ?: "Unknown Email"
+                                )
+                                // Update the crew node in /crews
+                                crewViewModel.updateCrewMemberInCrewNode(
+                                    crewId = selectedCrewId,
+                                    userId = userViewModel.currentUserId ?: return@CrewSelectionScreen,
                                     userName = userViewModel.cachedUserName ?: "Unknown User",
                                     firstName = userViewModel.cachedFirstName ?: "Unknown First",
                                     lastName = userViewModel.cachedLastName ?: "Unknown Last",
@@ -321,7 +394,8 @@ fun AppNavigation() {
                             onSettingsClick = { navController.navigate("settings") },
                             onMenuClick = {
                                 coroutineScope.launch { drawerState.open() }
-                            })
+                            }
+                        )
                     }
                 }
             }

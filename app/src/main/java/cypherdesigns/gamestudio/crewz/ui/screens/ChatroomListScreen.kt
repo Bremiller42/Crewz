@@ -7,16 +7,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.foundation.layout.height
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -29,20 +30,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import cypherdesigns.gamestudio.crewz.viewmodel.ChatViewModel
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import cypherdesigns.gamestudio.crewz.R
 import cypherdesigns.gamestudio.crewz.ui.chat.formatTimestamp
+import cypherdesigns.gamestudio.crewz.viewmodel.ChatViewModel
+import cypherdesigns.gamestudio.crewz.viewmodel.CrewViewModel
 import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 
 @Composable
 fun ChatroomListScreen(
     viewModel: ChatViewModel,
+    crewViewModel: CrewViewModel,
     userViewModel: UserViewModel,
-    crewId: String, // Pass the crew ID
+    crewId: String,
     onChatroomSelected: (String) -> Unit,
     onSettingsClick: () -> Unit,
     onMenuClick: () -> Unit
@@ -54,8 +56,8 @@ fun ChatroomListScreen(
     var newChatroomName by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
-        viewModel.fetchChatrooms(crewId) // Fetch chatrooms for the selected crew
-        userViewModel.observeCrewMembers(crewId)
+        viewModel.fetchChatrooms(crewId) // from ChatViewModel
+        crewViewModel.observeCrewMembers(crewId) // watch crew members
     }
 
     Scaffold(
@@ -89,7 +91,7 @@ fun ChatroomListScreen(
         ) {
             LazyColumn {
                 items(chatrooms) { chatroom ->
-                    androidx.compose.material3.ListItem(
+                    ListItem(
                         headlineContent = {
                             Text(
                                 chatroom.name,
@@ -111,12 +113,10 @@ fun ChatroomListScreen(
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         },
-                        colors = androidx.compose.material3.ListItemDefaults.colors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        modifier = Modifier.clickable { onChatroomSelected(chatroom.id) }
+                        modifier = Modifier.clickable {
+                            onChatroomSelected(chatroom.id)
+                        }
                     )
-
                     HorizontalDivider(
                         thickness = 1.dp,
                         color = MaterialTheme.colorScheme.onSurface
@@ -177,4 +177,3 @@ fun ChatroomListScreen(
         }
     }
 }
-

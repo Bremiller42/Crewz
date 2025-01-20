@@ -27,23 +27,29 @@ import cypherdesigns.gamestudio.crewz.data.ImageData
 import cypherdesigns.gamestudio.crewz.ui.screens.AppTopAppBar
 import cypherdesigns.gamestudio.crewz.viewmodel.GalleryViewModel
 import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
+import cypherdesigns.gamestudio.crewz.viewmodel.CrewViewModel
 
 @Composable
 fun GalleryScreen(
     viewModel: GalleryViewModel,
     userViewModel: UserViewModel,
-    crewId: String, // Pass the crewId to scope data fetching
+    crewId: String,
     onNavigateToUploadScreen: () -> Unit,
-    onImageClick: (ImageData) -> Unit, // Pass the entire ImageData object on click
+    onImageClick: (ImageData) -> Unit,
     onSettingsClick: () -> Unit,
     onMenuClick: () -> Unit
 ) {
     val imageDataList = viewModel.imageUrls.collectAsState().value
 
-    // Fetch images for the specific crew on screen load
+    // If we want to observe crew members in the gallery
+    // pass crewViewModel here if needed:
+    // e.g. crewViewModel.observeCrewMembers(crewId)
+    // but if it's not essential, skip it.
+
     LaunchedEffect(crewId) {
         viewModel.fetchImages(crewId)
-        userViewModel.observeCrewMembers(crewId)
+        // If you want to watch crew membership changes in gallery:
+        // crewViewModel.observeCrewMembers(crewId)
     }
 
     Scaffold(

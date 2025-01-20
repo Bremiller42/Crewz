@@ -1,3 +1,4 @@
+// NavigationItem.kt
 package cypherdesigns.gamestudio.crewz
 
 sealed class NavigationItem(val route: String, val icon: Int, val label: String) {
