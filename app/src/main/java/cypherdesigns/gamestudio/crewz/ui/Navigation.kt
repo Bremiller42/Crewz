@@ -21,7 +21,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -36,6 +39,7 @@ import cypherdesigns.gamestudio.crewz.data.utilities.AppLifecycleObserver
 import cypherdesigns.gamestudio.crewz.ui.screens.HomeScreen
 import cypherdesigns.gamestudio.crewz.ui.login.LoginScreen
 import cypherdesigns.gamestudio.crewz.ui.login.RegisterScreen
+import cypherdesigns.gamestudio.crewz.ui.menus.SettingsDropdownMenu
 import cypherdesigns.gamestudio.crewz.ui.screens.ChatroomListScreen
 import cypherdesigns.gamestudio.crewz.ui.screens.ChatroomScreen
 import cypherdesigns.gamestudio.crewz.ui.screens.CrewSelectionScreen
@@ -72,29 +76,27 @@ fun AppNavigation() {
     // Drawer state
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
+    var showSettingsMenu by remember { mutableStateOf(false)}
+
 
     // Once we know the crewId, observe crew-level data
     LaunchedEffect(crewId) {
         crewId?.let { cId ->
-            if (userId != null) {
-                // Observe the crew's members and user connection status
-                crewViewModel.observeCrewMembers(cId)
-                crewViewModel.observeConnectionStatus(cId, userId)
-                crewViewModel.observeMemberRole(cId, userId)
-            }
+            // Observe the crew's members and user connection status
+            crewViewModel.observeCrewMembers(cId)
+            crewViewModel.observeConnectionStatus(cId, userId)
+            crewViewModel.observeMemberRole(cId, userId)
 
             // We can also attach a lifecycle observer that sets user online/offline
-            if (userId != null) {
-                val lifecycleObserver = AppLifecycleObserver(cId, userId) { isOnline ->
-                    println("User $userId is now ${if (isOnline) "online" else "offline"}")
-                }
-                ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
+            val lifecycleObserver = AppLifecycleObserver(cId, userId) { isOnline ->
+                println("User $userId is now ${if (isOnline) "online" else "offline"}")
             }
+            ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
         }
     }
 
     // Collect the crew members from CrewViewModel
-    val crewMembers by crewViewModel.crewMembers.collectAsState()
+//    val crewMembers by crewViewModel.crewMembers.collectAsState()
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -137,32 +139,23 @@ fun AppNavigation() {
                             viewModel = userViewModel,
                             onLoginSuccess = {
                                 userViewModel.setUserId(userId)
-                                if (userId != null) {
-                                    // Once user logs in, we fetch the crewId from /users
-                                    userViewModel.fetchCrewId(userId) { fetchedCrewId ->
-                                        if (!fetchedCrewId.isNullOrEmpty()) {
-                                            // Mark them online in the crew
-                                            crewViewModel.updateOnlineStatus(
-                                                fetchedCrewId,
-                                                userId,
-                                                true
-                                            )
-                                            crewViewModel.observeCrewMembers(fetchedCrewId)
-                                            navController.navigate("home") {
-                                                popUpTo("login") { inclusive = true }
-                                            }
-                                        } else {
-                                            navController.navigate("crewSelection") {
-                                                popUpTo("login") { inclusive = true }
-                                            }
+                                userViewModel.fetchCrewId(userId) { fetchedCrewId ->
+                                    if (!fetchedCrewId.isNullOrEmpty()) {
+                                        // Mark them online in the crew
+                                        crewViewModel.updateOnlineStatus(
+                                            fetchedCrewId,
+                                            userId,
+                                            true
+                                        )
+                                        crewViewModel.observeCrewMembers(fetchedCrewId)
+                                        navController.navigate("home") {
+                                            popUpTo("login") { inclusive = true }
+                                        }
+                                    } else {
+                                        navController.navigate("crewSelection") {
+                                            popUpTo("login") { inclusive = true }
                                         }
                                     }
-                                } else {
-                                    Toast.makeText(
-                                        it,
-                                        "Error: User not logged in",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
                                 }
                             },
                             onNavigateToRegister = {
@@ -191,13 +184,32 @@ fun AppNavigation() {
                             HomeScreen(
                                 userViewModel = userViewModel,
                                 crewViewModel = crewViewModel,
-                                onSettingsClick = { navController.navigate("settings") },
+                                onAccountSettings = {
+                                    showSettingsMenu = false
+                                    navController.navigate("settings") // or "accountSettings"
+                                },
+                                onCrewSettings = {
+                                    showSettingsMenu = false
+                                    // maybe check if user is "owner"/"admin"
+//                                        navController.navigate("crewSettings")
+                                },
+                                onLogout = {
+                                    showSettingsMenu = false
+                                    FirebaseAuth.getInstance().signOut()
+                                    userViewModel.setUserId(null)
+                                    // back to login screen
+                                    navController.navigate("login") {
+                                        popUpTo("home") { inclusive = true }
+                                    }
+                                },
                                 onMenuClick = {
                                     coroutineScope.launch {
                                         drawerState.open()
                                     }
-                                }
-                            )
+                                },
+                                onBack = { navController.popBackStack() },
+                                )
+
                         } else {
                             // Edge case: crewId is null
                             Box(
@@ -213,18 +225,37 @@ fun AppNavigation() {
                         MapScreen(
                             userViewModel = userViewModel,
                             crewViewModel = crewViewModel,
-                            onSettingsClick = { navController.navigate("settings") },
+                            onAccountSettings = {
+                                showSettingsMenu = false
+                                navController.navigate("settings") // or "accountSettings"
+                            },
+                            onCrewSettings = {
+                                showSettingsMenu = false
+                                // maybe check if user is "owner"/"admin"
+//                                        navController.navigate("crewSettings")
+                            },
+                            onLogout = {
+                                showSettingsMenu = false
+                                FirebaseAuth.getInstance().signOut()
+                                userViewModel.setUserId(null)
+                                // back to login screen
+                                navController.navigate("login") {
+                                    popUpTo("home") { inclusive = true }
+                                }
+                            },
                             onMenuClick = {
                                 coroutineScope.launch { drawerState.open() }
-                            }
-                        )
-                    }
+                            },
+                            onBack = { navController.popBackStack() },
+                            )
+                        }
 
                     composable("gallery") {
                         if (crewId != null) {
                             GalleryScreen(
                                 viewModel = galleryViewModel,
                                 userViewModel = userViewModel,
+                                crewViewModel = crewViewModel,
                                 crewId = crewId!!,
                                 onNavigateToUploadScreen = { navController.navigate("upload") },
                                 onImageClick = { imageData ->
@@ -234,11 +265,30 @@ fun AppNavigation() {
                                         }"
                                     )
                                 },
-                                onSettingsClick = { navController.navigate("settings") },
+                                onAccountSettings = {
+                                    showSettingsMenu = false
+                                    navController.navigate("settings") // or "accountSettings"
+                                },
+                                onCrewSettings = {
+                                    showSettingsMenu = false
+                                    // maybe check if user is "owner"/"admin"
+//                                        navController.navigate("crewSettings")
+                                },
+                                onLogout = {
+                                    showSettingsMenu = false
+                                    FirebaseAuth.getInstance().signOut()
+                                    userViewModel.setUserId(null)
+                                    // back to login screen
+                                    navController.navigate("login") {
+                                        popUpTo("home") { inclusive = true }
+                                    }
+                                },
                                 onMenuClick = {
                                     coroutineScope.launch { drawerState.open() }
-                                }
-                            )
+                                },
+                                onBack = { navController.popBackStack() },
+
+                                )
                         } else {
                             // If crewId is null, user hasn't joined a crew yet
                             Box(
@@ -262,12 +312,33 @@ fun AppNavigation() {
                             backStackEntry.arguments?.getString("uploadedBy")?.let { Uri.decode(it) }
                         ImageDetailScreen(
                             imageUrl = imageUrl,
+                            crewViewModel = crewViewModel,
                             uploadedBy = uploadedBy,
-                            onSettingsClick = { navController.navigate("settings") },
+                            onAccountSettings = {
+                                showSettingsMenu = false
+                                navController.navigate("settings") // or "accountSettings"
+                            },
+                            onCrewSettings = {
+                                showSettingsMenu = false
+                                // maybe check if user is "owner"/"admin"
+//                                        navController.navigate("crewSettings")
+                            },
+                            onLogout = {
+                                showSettingsMenu = false
+                                FirebaseAuth.getInstance().signOut()
+                                userViewModel.setUserId(null)
+                                // back to login screen
+                                navController.navigate("login") {
+                                    popUpTo("home") { inclusive = true }
+                                }
+                            },
                             onMenuClick = {
                                 coroutineScope.launch { drawerState.open() }
-                            }
-                        )
+                            },
+                            onBack = { navController.popBackStack() },
+
+                            )
+
                     }
 
                     composable("upload") {
@@ -289,11 +360,31 @@ fun AppNavigation() {
                                 onChatroomSelected = { chatroomId ->
                                     navController.navigate("chatroom/$chatroomId")
                                 },
-                                onSettingsClick = { navController.navigate("settings") },
+                                onAccountSettings = {
+                                    showSettingsMenu = false
+                                    navController.navigate("settings") // or "accountSettings"
+                                },
+                                onCrewSettings = {
+                                    showSettingsMenu = false
+                                    // maybe check if user is "owner"/"admin"
+//                                        navController.navigate("crewSettings")
+                                },
+                                onLogout = {
+                                    showSettingsMenu = false
+                                    FirebaseAuth.getInstance().signOut()
+                                    userViewModel.setUserId(null)
+                                    // back to login screen
+                                    navController.navigate("login") {
+                                        popUpTo("home") { inclusive = true }
+                                    }
+                                },
                                 onMenuClick = {
                                     coroutineScope.launch { drawerState.open() }
-                                }
-                            )
+                                },
+                                onBack = { navController.popBackStack() },
+
+                                )
+
                         } else {
                             Box(
                                 modifier = androidx.compose.ui.Modifier.fillMaxSize(),
@@ -314,11 +405,30 @@ fun AppNavigation() {
                                 crewViewModel = crewViewModel,
                                 crewId = crewId!!,
                                 chatroomId = chatroomId,
-                                onSettingsClick = { navController.navigate("settings") },
+                                onAccountSettings = {
+                                    showSettingsMenu = false
+                                    navController.navigate("settings") // or "accountSettings"
+                                },
+                                onCrewSettings = {
+                                    showSettingsMenu = false
+                                    // maybe check if user is "owner"/"admin"
+//                                        navController.navigate("crewSettings")
+                                },
+                                onLogout = {
+                                    showSettingsMenu = false
+                                    FirebaseAuth.getInstance().signOut()
+                                    userViewModel.setUserId(null)
+                                    // back to login screen
+                                    navController.navigate("login") {
+                                        popUpTo("home") { inclusive = true }
+                                    }
+                                },
                                 onMenuClick = {
                                     coroutineScope.launch { drawerState.open() }
-                                }
-                            )
+                                },
+                                onBack = { navController.popBackStack() },
+
+                                )
                         } else {
                             Box(
                                 modifier = androidx.compose.ui.Modifier.fillMaxSize(),
@@ -330,13 +440,31 @@ fun AppNavigation() {
                     }
 
                     composable("settings") {
-                        if (crewId != null && userId != null) {
+                        if (crewId != null) {
                             SettingsScreen(
                                 userViewModel = userViewModel,
                                 crewViewModel = crewViewModel,
                                 userId = userId,
                                 crewId = crewId!!,
                                 onBack = { navController.popBackStack() },
+                                onAccountSettings = {
+                                    showSettingsMenu = false
+                                    navController.navigate("settings") // or "accountSettings"
+                                },
+                                onCrewSettings = {
+                                    showSettingsMenu = false
+                                    // maybe check if user is "owner"/"admin"
+//                                        navController.navigate("crewSettings")
+                                },
+                                onLogout = {
+                                    showSettingsMenu = false
+                                    FirebaseAuth.getInstance().signOut()
+                                    userViewModel.setUserId(null)
+                                    // back to login screen
+                                    navController.navigate("login") {
+                                        popUpTo("home") { inclusive = true }
+                                    }
+                                },
                                 onMenuClick = {
                                     coroutineScope.launch { drawerState.open() }
                                 }
@@ -371,49 +499,66 @@ fun AppNavigation() {
                             crewViewModel = crewViewModel,
                             onCrewSelected = { selectedCrewId ->
                                 // 1) Read the user's existing role in this crew (if any)
-                                if (userId != null) {
-                                    crewViewModel.getMemberRoleOnce(selectedCrewId, userId) { existingRole ->
-                                        // Decide final role: if they're already "owner", keep it; else "member"
-                                        val finalRole = if (existingRole == "owner") "owner" else "member"
-                                        println("onCrewSelected: Final Role: $finalRole")
-                                        // 2) Update /users/{userId} node
-                                        userViewModel.updateCrewId(selectedCrewId)
-                                        userViewModel.updateUserInfoInUserNode(
-                                            crewId = selectedCrewId,
-                                            userName = userViewModel.cachedUserName ?: "Unknown User",
-                                            firstName = userViewModel.cachedFirstName ?: "Unknown First",
-                                            lastName  = userViewModel.cachedLastName  ?: "Unknown Last",
-                                            email     = userViewModel.cachedEmail     ?: "Unknown Email"
-                                        )
+                                crewViewModel.getMemberRoleOnce(selectedCrewId, userId) { existingRole ->
+                                    // Decide final role: if they're already "owner", keep it; else "member"
+                                    val finalRole = if (existingRole == "owner") "owner" else "member"
+                                    println("onCrewSelected: Final Role: $finalRole")
+                                    // 2) Update /users/{userId} node
+                                    userViewModel.updateCrewId(selectedCrewId)
+                                    userViewModel.updateUserInfoInUserNode(
+                                        crewId = selectedCrewId,
+                                        userName = userViewModel.cachedUserName ?: "Unknown User",
+                                        firstName = userViewModel.cachedFirstName ?: "Unknown First",
+                                        lastName  = userViewModel.cachedLastName  ?: "Unknown Last",
+                                        email     = userViewModel.cachedEmail     ?: "Unknown Email"
+                                    )
 
-                                        // 3) Update /crews/{crewId}/members/{userId}
-                                        crewViewModel.updateCrewUserInfo(
-                                            crewId = selectedCrewId,
-                                            userId = userId,
-                                            updates = mapOf(
-                                                "userName" to (userViewModel.cachedUserName ?: "Unknown User"),
-                                                "firstName" to (userViewModel.cachedFirstName ?: "Unknown First"),
-                                                "lastName"  to (userViewModel.cachedLastName  ?: "Unknown Last"),
-                                                "email"     to (userViewModel.cachedEmail     ?: "Unknown Email"),
-                                                "online" to true,
-                                                "markerColor" to "red",
-                                                "locationSharingEnabled" to false,
-                                                "role" to finalRole
-                                            )
+                                    // 3) Update /crews/{crewId}/members/{userId}
+                                    crewViewModel.updateCrewUserInfo(
+                                        crewId = selectedCrewId,
+                                        userId = userId,
+                                        updates = mapOf(
+                                            "userName" to (userViewModel.cachedUserName ?: "Unknown User"),
+                                            "firstName" to (userViewModel.cachedFirstName ?: "Unknown First"),
+                                            "lastName"  to (userViewModel.cachedLastName  ?: "Unknown Last"),
+                                            "email"     to (userViewModel.cachedEmail     ?: "Unknown Email"),
+                                            "online" to true,
+                                            "markerColor" to "red",
+                                            "locationSharingEnabled" to false,
+                                            "role" to finalRole
                                         )
+                                    )
 
-                                        // 4) Navigate away
-                                        navController.navigate("home") {
-                                            popUpTo("crewSelection") { inclusive = true }
-                                        }
+                                    // 4) Navigate away
+                                    navController.navigate("home") {
+                                        popUpTo("crewSelection") { inclusive = true }
                                     }
                                 }
                             },
-                            onSettingsClick = { navController.navigate("settings") },
+                            onAccountSettings = {
+                                showSettingsMenu = false
+                                navController.navigate("settings") // or "accountSettings"
+                            },
+                            onCrewSettings = {
+                                showSettingsMenu = false
+                                // maybe check if user is "owner"/"admin"
+//                                        navController.navigate("crewSettings")
+                            },
+                            onLogout = {
+                                showSettingsMenu = false
+                                FirebaseAuth.getInstance().signOut()
+                                userViewModel.setUserId(null)
+                                // back to login screen
+                                navController.navigate("login") {
+                                    popUpTo("home") { inclusive = true }
+                                }
+                            },
                             onMenuClick = {
                                 coroutineScope.launch { drawerState.open() }
-                            }
-                        )
+                            },
+                            onBack = { navController.popBackStack() },
+
+                            )
                     }
                 }
             }

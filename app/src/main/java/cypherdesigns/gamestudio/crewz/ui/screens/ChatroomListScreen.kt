@@ -46,8 +46,11 @@ fun ChatroomListScreen(
     userViewModel: UserViewModel,
     crewId: String,
     onChatroomSelected: (String) -> Unit,
-    onSettingsClick: () -> Unit,
-    onMenuClick: () -> Unit
+    onAccountSettings: () -> Unit,
+    onCrewSettings: () -> Unit,
+    onLogout: () -> Unit,
+    onMenuClick: () -> Unit,
+    onBack: () -> Unit
 ) {
     val chatrooms by viewModel.chatrooms.collectAsState()
     val context = LocalContext.current
@@ -63,9 +66,13 @@ fun ChatroomListScreen(
     Scaffold(
         topBar = {
             AppTopAppBar(
-                title = "Crew Chatrooms",
-                onSettingsClick = onSettingsClick,
-                onMenuClick = onMenuClick
+                title = "Chatrooms",
+                crewViewModel = crewViewModel,
+                onAccountSettings = onAccountSettings,
+                onCrewSettings = onCrewSettings,
+                onLogout = onLogout,
+                onMenuClick = onMenuClick,
+                onBack = onBack
             )
         },
         floatingActionButton = {

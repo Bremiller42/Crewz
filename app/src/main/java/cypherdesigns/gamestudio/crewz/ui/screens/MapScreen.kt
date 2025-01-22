@@ -41,8 +41,11 @@ import vectorToBitmapDescriptor
 fun MapScreen(
     userViewModel: UserViewModel,
     crewViewModel: CrewViewModel,
-    onSettingsClick: () -> Unit,
-    onMenuClick: () -> Unit
+    onAccountSettings: () -> Unit,
+    onCrewSettings: () -> Unit,
+    onLogout: () -> Unit,
+    onMenuClick: () -> Unit,
+    onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val hasLocationPermission = remember {
@@ -82,9 +85,14 @@ fun MapScreen(
     Scaffold(
         topBar = {
             AppTopAppBar(
-                title = "Crew Map",
-                onSettingsClick = onSettingsClick,
-                onMenuClick = onMenuClick
+                title = "Map",
+                crewViewModel = crewViewModel,
+                onAccountSettings = onAccountSettings,
+                onCrewSettings = onCrewSettings,
+                onLogout = onLogout,
+                onMenuClick = onMenuClick,
+                onBack = onBack
+
             )
         },
         floatingActionButton = {

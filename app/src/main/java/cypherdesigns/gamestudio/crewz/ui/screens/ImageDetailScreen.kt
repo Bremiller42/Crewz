@@ -18,20 +18,29 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import cypherdesigns.gamestudio.crewz.R
+import cypherdesigns.gamestudio.crewz.viewmodel.CrewViewModel
 
 @Composable
 fun ImageDetailScreen(
     imageUrl: String?,
+    crewViewModel: CrewViewModel,
     uploadedBy: String?,
-    onSettingsClick: () -> Unit,
-    onMenuClick: () -> Unit
+    onAccountSettings: () -> Unit,
+    onCrewSettings: () -> Unit,
+    onLogout: () -> Unit,
+    onMenuClick: () -> Unit,
+    onBack: () -> Unit
 ) {
     Scaffold(
         topBar = {
             AppTopAppBar(
-                title = "Crew Map",
-                onSettingsClick = onSettingsClick,
-                onMenuClick = onMenuClick
+                title = "Image",
+                crewViewModel = crewViewModel,
+                onAccountSettings = onAccountSettings,
+                onCrewSettings = onCrewSettings,
+                onLogout = onLogout,
+                onMenuClick = onMenuClick,
+                onBack = onBack
             )
         },
     ) { paddingValues ->

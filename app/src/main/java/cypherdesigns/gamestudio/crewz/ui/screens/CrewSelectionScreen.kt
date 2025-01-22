@@ -28,8 +28,11 @@ fun CrewSelectionScreen(
     userViewModel: UserViewModel,
     crewViewModel: CrewViewModel,
     onCrewSelected: (String) -> Unit,
-    onSettingsClick: () -> Unit,
-    onMenuClick: () -> Unit
+    onAccountSettings: () -> Unit,
+    onCrewSettings: () -> Unit,
+    onLogout: () -> Unit,
+    onMenuClick: () -> Unit,
+    onBack: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -49,8 +52,12 @@ fun CrewSelectionScreen(
         topBar = {
             AppTopAppBar(
                 title = "Join a Crew",
-                onSettingsClick = onSettingsClick,
-                onMenuClick = onMenuClick
+                crewViewModel = crewViewModel,
+                onAccountSettings = onAccountSettings,
+                onCrewSettings = onCrewSettings,
+                onLogout = onLogout,
+                onMenuClick = onMenuClick,
+                onBack = onBack
             )
         },
         floatingActionButton = {

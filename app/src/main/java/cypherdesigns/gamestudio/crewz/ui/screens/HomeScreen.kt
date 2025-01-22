@@ -14,8 +14,11 @@ import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 fun HomeScreen(
     userViewModel: UserViewModel,
     crewViewModel: CrewViewModel,
-    onSettingsClick: () -> Unit,
-    onMenuClick: () -> Unit
+    onAccountSettings: () -> Unit,
+    onCrewSettings: () -> Unit,
+    onLogout: () -> Unit,
+    onMenuClick: () -> Unit,
+    onBack: () -> Unit
 ) {
     val crewId by userViewModel.currentCrewId.collectAsState()
     val crewName by crewViewModel.currentCrewName.collectAsState()
@@ -33,9 +36,13 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             AppTopAppBar(
-                title = "$displayName Crew",
-                onSettingsClick = onSettingsClick,
-                onMenuClick = onMenuClick
+                title = displayName,
+                crewViewModel = crewViewModel,
+                onAccountSettings = onAccountSettings,
+                onCrewSettings = onCrewSettings,
+                onLogout = onLogout,
+                onMenuClick = onMenuClick,
+                onBack = onBack
             )
         }
     ) { innerPadding ->

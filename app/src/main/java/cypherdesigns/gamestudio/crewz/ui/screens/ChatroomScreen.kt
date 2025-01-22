@@ -35,8 +35,11 @@ fun ChatroomScreen(
     crewViewModel: CrewViewModel,
     crewId: String,
     chatroomId: String,
-    onSettingsClick: () -> Unit,
-    onMenuClick: () -> Unit
+    onAccountSettings: () -> Unit,
+    onCrewSettings: () -> Unit,
+    onLogout: () -> Unit,
+    onMenuClick: () -> Unit,
+    onBack: () -> Unit
 ) {
     val messages by viewModel.messages.collectAsState()
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
@@ -51,9 +54,13 @@ fun ChatroomScreen(
     Scaffold(
         topBar = {
             AppTopAppBar(
-                title = "Our Crew",
-                onSettingsClick = onSettingsClick,
-                onMenuClick = onMenuClick
+                title = "Chatroom",
+                crewViewModel = crewViewModel,
+                onAccountSettings = onAccountSettings,
+                onCrewSettings = onCrewSettings,
+                onLogout = onLogout,
+                onMenuClick = onMenuClick,
+                onBack = onBack
             )
         }
     ) { innerPadding ->

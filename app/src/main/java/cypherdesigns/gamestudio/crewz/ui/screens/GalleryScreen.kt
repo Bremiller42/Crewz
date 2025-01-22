@@ -33,11 +33,15 @@ import cypherdesigns.gamestudio.crewz.viewmodel.CrewViewModel
 fun GalleryScreen(
     viewModel: GalleryViewModel,
     userViewModel: UserViewModel,
+    crewViewModel: CrewViewModel,
     crewId: String,
     onNavigateToUploadScreen: () -> Unit,
     onImageClick: (ImageData) -> Unit,
-    onSettingsClick: () -> Unit,
-    onMenuClick: () -> Unit
+    onAccountSettings: () -> Unit,
+    onCrewSettings: () -> Unit,
+    onLogout: () -> Unit,
+    onMenuClick: () -> Unit,
+    onBack: () -> Unit
 ) {
     val imageDataList = viewModel.imageUrls.collectAsState().value
 
@@ -56,8 +60,12 @@ fun GalleryScreen(
         topBar = {
             AppTopAppBar(
                 title = "Crew Gallery",
-                onSettingsClick = onSettingsClick,
-                onMenuClick = onMenuClick
+                crewViewModel = crewViewModel,
+                onAccountSettings = onAccountSettings,
+                onCrewSettings = onCrewSettings,
+                onLogout = onLogout,
+                onMenuClick = onMenuClick,
+                onBack = onBack
             )
         },
         floatingActionButton = {

@@ -22,6 +22,9 @@ fun SettingsScreen(
     userId: String,
     crewId: String,
     onBack: () -> Unit,
+    onAccountSettings: () -> Unit,
+    onCrewSettings: () -> Unit,
+    onLogout: () -> Unit,
     onMenuClick: () -> Unit
 ) {
     val isLocationSharingEnabled by crewViewModel.isLocationSharingEnabled.collectAsState()
@@ -41,8 +44,12 @@ fun SettingsScreen(
         topBar = {
             AppTopAppBar(
                 title = "Settings",
-                onSettingsClick = onBack,
-                onMenuClick = onMenuClick
+                crewViewModel = crewViewModel,
+                onAccountSettings = onAccountSettings,
+                onCrewSettings = onCrewSettings,
+                onLogout = onLogout,
+                onMenuClick = onMenuClick,
+                onBack = onBack
             )
         }
     ) { innerPadding ->
