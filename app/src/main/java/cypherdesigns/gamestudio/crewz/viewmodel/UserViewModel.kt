@@ -11,8 +11,8 @@ class UserViewModel : ViewModel() {
 
     private val userRepository = UserRepository()
 
-    val currentUserId: String?
-        get() = FirebaseAuth.getInstance().currentUser?.uid
+    private val _currentUserId = MutableStateFlow<String?>(null)
+    val currentUserId: StateFlow<String?> = _currentUserId.asStateFlow()
 
     // The user's crewId from /users/{userId}/crewId
     private val _currentCrewId = MutableStateFlow<String?>(null)
@@ -45,6 +45,10 @@ class UserViewModel : ViewModel() {
     // -------------------------------------------------
     // Writing user info
     // -------------------------------------------------
+
+    fun setUserId(uid: String?) {
+        _currentUserId.value = uid
+    }
 
     /**
      * Convenience method to update only the 'crewId' field in /users/{userId}.
@@ -103,9 +107,11 @@ class UserViewModel : ViewModel() {
         onSuccess: () -> Unit = {},
         onFailure: (String) -> Unit = {}
     ) {
-        val userId = currentUserId ?: return onFailure("User ID is null")
+        val uid = _currentUserId.value
+            ?: return onFailure("No user ID set in ViewModel")
+
         userRepository.updateGlobalUserInfo(
-            userId = userId,
+            userId = uid,
             updates = updates,
             onSuccess = onSuccess,
             onFailure = onFailure

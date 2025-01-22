@@ -229,6 +229,7 @@ fun RegisterScreen(
                                     if (task.isSuccessful) {
                                         val userId = auth.currentUser?.uid
                                         if (userId != null) {
+                                            viewModel.setUserId(userId)
                                             // 3) Use ViewModel to populate user fields in /users
                                             //    We set crewId = "" to show they're not assigned to a crew yet.
                                             viewModel.updateUserInfoInUserNode(

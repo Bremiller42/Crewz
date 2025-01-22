@@ -30,6 +30,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
 import cypherdesigns.gamestudio.crewz.data.utilities.AppLifecycleObserver
 import cypherdesigns.gamestudio.crewz.ui.screens.HomeScreen
@@ -53,7 +54,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
-
+    val auth = FirebaseAuth.getInstance()
     // Common bottom bar routes
     val bottomBarRoutes = listOf("home", "map", "chat", "gallery")
 
@@ -65,8 +66,7 @@ fun AppNavigation() {
 
     // Observe the user's crewId (stored in /users/{userId}/crewId)
     val crewId by userViewModel.currentCrewId.collectAsState()
-    val userId = userViewModel.currentUserId
-
+    val userId = auth.currentUser?.uid ?: return
     val storageReference = FirebaseStorage.getInstance().reference
 
     // Drawer state
@@ -136,15 +136,15 @@ fun AppNavigation() {
                         LoginScreen(
                             viewModel = userViewModel,
                             onLoginSuccess = {
-                                val currentUserId = userViewModel.currentUserId
-                                if (currentUserId != null) {
+                                userViewModel.setUserId(userId)
+                                if (userId != null) {
                                     // Once user logs in, we fetch the crewId from /users
-                                    userViewModel.fetchCrewId(currentUserId) { fetchedCrewId ->
+                                    userViewModel.fetchCrewId(userId) { fetchedCrewId ->
                                         if (!fetchedCrewId.isNullOrEmpty()) {
                                             // Mark them online in the crew
                                             crewViewModel.updateOnlineStatus(
                                                 fetchedCrewId,
-                                                currentUserId,
+                                                userId,
                                                 true
                                             )
                                             crewViewModel.observeCrewMembers(fetchedCrewId)
@@ -395,6 +395,7 @@ fun AppNavigation() {
                                                 "firstName" to (userViewModel.cachedFirstName ?: "Unknown First"),
                                                 "lastName"  to (userViewModel.cachedLastName  ?: "Unknown Last"),
                                                 "email"     to (userViewModel.cachedEmail     ?: "Unknown Email"),
+                                                "online" to true,
                                                 "markerColor" to "red",
                                                 "locationSharingEnabled" to false,
                                                 "role" to finalRole

@@ -264,22 +264,28 @@ fun loginUser(
     auth.signInWithEmailAndPassword(email, password)
         .addOnCompleteListener { task ->
             if (task.isSuccessful) {
+                // Save credentials locally
                 saveCredentials(context, email, password)
-                Toast.makeText(context, "Login Credentials Saved. You can now use biometrics.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Login Credentials Saved...", Toast.LENGTH_SHORT).show()
 
-                val userId = userViewModel.currentUserId
-                if (userId != null) {
-                    userViewModel.fetchCrewId(userId) {
-                        // We don't navigate here because the composable calls onLoginSuccess
-                        // which navigates to the home or crew selection screen as needed.
-                        onLoginSuccess()
-                    }
-                    userViewModel.fetchUserDetails(userId)
-                } else {
-                    onLoginFailure("Login failed: userId is null after signIn.")
+                // 1) Retrieve the newly logged-in user’s UID
+                val currentUid = auth.currentUser?.uid
+                if (currentUid == null) {
+                    onLoginFailure("Login failed: currentUid is null after signIn.")
+                    return@addOnCompleteListener
                 }
+
+                // 2) Let the UserViewModel know the user is logged in:
+                userViewModel.setUserId(currentUid)
+
+                // 3) Now you can safely fetchCrewId etc.
+                userViewModel.fetchCrewId(currentUid) {
+                    onLoginSuccess()
+                }
+                userViewModel.fetchUserDetails(currentUid)
             } else {
                 onLoginFailure("Login Failed: ${task.exception?.message}")
             }
         }
+
 }

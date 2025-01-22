@@ -129,7 +129,7 @@ fun MapContent(
     val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
     val crewId by userViewModel.currentCrewId.collectAsState()
-    val userId = userViewModel.currentUserId
+    val userId by userViewModel.currentUserId.collectAsState()
 
     val userLocationEnabled by crewViewModel.isLocationSharingEnabled.collectAsState()
     val selectedHue by crewViewModel.markerColorName.collectAsState()
@@ -177,7 +177,6 @@ fun MapContent(
                     isFollowingUser = true
 
                     if (userLocationEnabled && userId != null && crewId != null) {
-                        // Single-update approach: update markerColor, location, sharing
                         val updates = mapOf(
                             "latitude" to location.latitude,
                             "longitude" to location.longitude,
@@ -185,9 +184,9 @@ fun MapContent(
                             "locationSharingEnabled" to userLocationEnabled
                         )
                         crewViewModel.updateCrewUserInfo(
-                            crewId!!,
-                            userId,
-                            updates
+                            crewId = crewId!!,
+                            userId = userId!!, // now userId is the actual UID string
+                            updates = updates
                         )
                     }
 

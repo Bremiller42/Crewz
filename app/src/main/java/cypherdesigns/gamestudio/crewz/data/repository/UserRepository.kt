@@ -66,9 +66,7 @@ class UserRepository {
      * Return crewId from /users/{userId}/crewId
      */
     fun getUserCrewId(userId: String, onResult: (String) -> Unit) {
-        database.getReference("users")
-            .child(userId)
-            .child("crewId")
+        database.getReference("users/$userId/crewId")
             .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     onResult(snapshot.getValue(String::class.java) ?: "")

@@ -61,7 +61,7 @@ fun CrewSidebar(
         // Online
         onlineMembers.forEach { member ->
             Text(
-                text = "${member.role} ${member.userName}",
+                text = "${member.role.replaceFirstChar { it.uppercaseChar()}} ${member.userName}",
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable { onMemberClick(member) }
             )
@@ -71,7 +71,7 @@ fun CrewSidebar(
         // Offline
         offlineMembers.forEach { member ->
             Text(
-                text = "${member.role} ${member.userName}",
+                text = "${member.role.replaceFirstChar { it.uppercaseChar()}} ${member.userName}",
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.clickable { onMemberClick(member) }
             )

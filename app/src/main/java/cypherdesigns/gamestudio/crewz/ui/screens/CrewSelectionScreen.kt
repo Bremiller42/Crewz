@@ -99,11 +99,11 @@ fun CrewSelectionScreen(
                 onCrewNameChange = { newCrewName = it },
                 onCreateClick = {
                     if (newCrewName.isNotBlank()) {
-                        val currentUserId = userViewModel.currentUserId
+                        val currentUserId = userViewModel.currentUserId.value
                         if (currentUserId != null) {
                             crewViewModel.createCrew(
                                 crewName = newCrewName,
-                                ownerUserId = userViewModel.currentUserId ?: return@CreateCrewDialog,
+                                ownerUserId = currentUserId,
                                 ownerUserName = userViewModel.cachedUserName ?: "Unknown",
                                 ownerFirstName = userViewModel.cachedFirstName ?: "Unknown",
                                 ownerLastName = userViewModel.cachedLastName ?: "Unknown",
