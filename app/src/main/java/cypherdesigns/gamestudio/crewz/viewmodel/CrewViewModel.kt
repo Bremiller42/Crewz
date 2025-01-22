@@ -21,11 +21,15 @@ class CrewViewModel : ViewModel() {
     private val _currentCrewName = MutableStateFlow<String?>(null)
     val currentCrewName: StateFlow<String?> = _currentCrewName.asStateFlow()
 
+    private val _currentCrewRole = MutableStateFlow<String?>(null)
+    val currentCrewRole: StateFlow<String?> = _currentCrewRole.asStateFlow()
+
     private val _isLocationSharingEnabled = MutableStateFlow(false)
     val isLocationSharingEnabled: StateFlow<Boolean> = _isLocationSharingEnabled.asStateFlow()
 
     private val _markerColorName = MutableStateFlow("red")
     val markerColorName: StateFlow<String> = _markerColorName.asStateFlow()
+
     // NEW: A list of crews available to join
     private val _availableCrews = MutableStateFlow<List<CrewInfo>>(emptyList())
     val availableCrews: StateFlow<List<CrewInfo>> = _availableCrews.asStateFlow()
@@ -54,20 +58,29 @@ class CrewViewModel : ViewModel() {
     fun createCrew(
         crewName: String,
         ownerUserId: String,
+        ownerUserName: String,
+        ownerFirstName: String,
+        ownerLastName: String,
+        ownerEmail: String,
         onSuccess: (String) -> Unit,
         onFailure: (String) -> Unit
     ) {
-        viewModelScope.launch {
-            crewRepository.createCrew(crewName, ownerUserId,
-                onSuccess = { newCrewId ->
-                    onSuccess(newCrewId)
-                },
-                onFailure = { error ->
-                    onFailure(error)
-                }
-            )
-        }
+        crewRepository.createCrew(
+            crewName = crewName,
+            ownerUserId = ownerUserId,
+            ownerUserName = ownerUserName,
+            ownerFirstName = ownerFirstName,
+            ownerLastName = ownerLastName,
+            ownerEmail = ownerEmail,
+            onSuccess = { newCrewId ->
+                onSuccess(newCrewId)
+            },
+            onFailure = { error ->
+                onFailure(error)
+            }
+        )
     }
+
     // ----------------------------------------------------
     // Crew Membership
     // ----------------------------------------------------
@@ -172,37 +185,6 @@ class CrewViewModel : ViewModel() {
         crewRepository.observeConnectionStatus(crewId, userId)
     }
 
-    // ----------------------------------------------------
-    // Update user data in the "crews" node
-    // ----------------------------------------------------
-
-    /**
-     * If you want a single call for initially creating or overwriting
-     * a user in the crew node, you can do it here by building the default map:
-     */
-    fun updateCrewMemberInCrewNode(
-        crewId: String,
-        userId: String,
-        userName: String,
-        firstName: String,
-        lastName: String,
-        email: String
-    ) {
-        // Instead of calling a specialized repository function,
-        // just call updateCrewUserInfo with all fields:
-        updateCrewUserInfo(
-            crewId = crewId,
-            userId = userId,
-            updates = mapOf(
-                "userName" to userName,
-                "firstName" to firstName,
-                "lastName" to lastName,
-                "email" to email,
-                "markerColor" to "red",
-                "locationSharingEnabled" to false
-            )
-        )
-    }
 
     /**
      * A single method for updating arbitrary fields in /crews/{crewId}/members/{userId}.
@@ -224,6 +206,7 @@ class CrewViewModel : ViewModel() {
             )
         }
     }
+
     fun observeCrewLocations(crewId: String) {
         crewRepository.observeCrewLocations(
             crewId = crewId,
@@ -241,6 +224,56 @@ class CrewViewModel : ViewModel() {
             onError = { error ->
                 println("observeCrewLocations error: $error")
                 // Optionally handle errors
+            }
+        )
+    }
+
+    fun createOrUpdateCrewMember(
+        crewId: String,
+        userId: String,
+        userName: String,
+        firstName: String,
+        lastName: String,
+        email: String,
+        role: String = "member"
+    ) {
+        // Build all fields
+        val newMemberFields = mapOf(
+            "userName" to userName,
+            "firstName" to firstName,
+            "lastName"  to lastName,
+            "email"     to email,
+            "role"      to role,
+            "markerColor" to "red",
+            "locationSharingEnabled" to false
+        )
+        // Then just call updateCrewUserInfo
+        updateCrewUserInfo(crewId, userId, newMemberFields)
+    }
+
+    fun observeMemberRole(crewId: String, userId: String) {
+        crewRepository.observeMemberRole(crewId, userId) { role ->
+            _currentCrewRole.value = role
+        }
+    }
+    fun getMemberRoleOnce(
+        crewId: String,
+        userId: String,
+        onComplete: (String?) -> Unit
+    ) {
+        crewRepository.getMemberRoleOnce(crewId, userId) { existingRole ->
+            onComplete(existingRole)
+        }
+    }
+
+    fun setMemberRole(crewId: String, userId: String, role: String) {
+        crewRepository.setMemberRole(
+            crewId, userId, role,
+            onSuccess = {
+                println("Role updated to $role for user=$userId")
+            },
+            onFailure = {
+                println("Failed to update role: $it")
             }
         )
     }

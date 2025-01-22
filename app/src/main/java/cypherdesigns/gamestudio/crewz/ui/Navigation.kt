@@ -80,6 +80,7 @@ fun AppNavigation() {
                 // Observe the crew's members and user connection status
                 crewViewModel.observeCrewMembers(cId)
                 crewViewModel.observeConnectionStatus(cId, userId)
+                crewViewModel.observeMemberRole(cId, userId)
             }
 
             // We can also attach a lifecycle observer that sets user online/offline
@@ -369,32 +370,42 @@ fun AppNavigation() {
                             userViewModel = userViewModel,
                             crewViewModel = crewViewModel,
                             onCrewSelected = { selectedCrewId ->
-                                // 1) Update /users/{userId} node
-                                userViewModel.updateCrewId(selectedCrewId)
-                                userViewModel.updateUserInfoInUserNode(
-                                    crewId = selectedCrewId,
-                                    userName = userViewModel.cachedUserName ?: "Unknown User",
-                                    firstName = userViewModel.cachedFirstName ?: "Unknown First",
-                                    lastName  = userViewModel.cachedLastName  ?: "Unknown Last",
-                                    email     = userViewModel.cachedEmail     ?: "Unknown Email"
-                                )
+                                // 1) Read the user's existing role in this crew (if any)
+                                if (userId != null) {
+                                    crewViewModel.getMemberRoleOnce(selectedCrewId, userId) { existingRole ->
+                                        // Decide final role: if they're already "owner", keep it; else "member"
+                                        val finalRole = if (existingRole == "owner") "owner" else "member"
+                                        println("onCrewSelected: Final Role: $finalRole")
+                                        // 2) Update /users/{userId} node
+                                        userViewModel.updateCrewId(selectedCrewId)
+                                        userViewModel.updateUserInfoInUserNode(
+                                            crewId = selectedCrewId,
+                                            userName = userViewModel.cachedUserName ?: "Unknown User",
+                                            firstName = userViewModel.cachedFirstName ?: "Unknown First",
+                                            lastName  = userViewModel.cachedLastName  ?: "Unknown Last",
+                                            email     = userViewModel.cachedEmail     ?: "Unknown Email"
+                                        )
 
-                                // 2) Update /crews/{crewId}/members/{userId} node
-                                crewViewModel.updateCrewUserInfo(
-                                    crewId = selectedCrewId,
-                                    userId = userViewModel.currentUserId ?: return@CrewSelectionScreen,
-                                    updates = mapOf(
-                                        "userName" to (userViewModel.cachedUserName ?: "Unknown User"),
-                                        "firstName" to (userViewModel.cachedFirstName ?: "Unknown First"),
-                                        "lastName"  to (userViewModel.cachedLastName  ?: "Unknown Last"),
-                                        "email"     to (userViewModel.cachedEmail     ?: "Unknown Email"),
-                                        "markerColor" to "red",
-                                        "locationSharingEnabled" to false
-                                    )
-                                )
+                                        // 3) Update /crews/{crewId}/members/{userId}
+                                        crewViewModel.updateCrewUserInfo(
+                                            crewId = selectedCrewId,
+                                            userId = userId,
+                                            updates = mapOf(
+                                                "userName" to (userViewModel.cachedUserName ?: "Unknown User"),
+                                                "firstName" to (userViewModel.cachedFirstName ?: "Unknown First"),
+                                                "lastName"  to (userViewModel.cachedLastName  ?: "Unknown Last"),
+                                                "email"     to (userViewModel.cachedEmail     ?: "Unknown Email"),
+                                                "markerColor" to "red",
+                                                "locationSharingEnabled" to false,
+                                                "role" to finalRole
+                                            )
+                                        )
 
-                                navController.navigate("home") {
-                                    popUpTo("crewSelection") { inclusive = true }
+                                        // 4) Navigate away
+                                        navController.navigate("home") {
+                                            popUpTo("crewSelection") { inclusive = true }
+                                        }
+                                    }
                                 }
                             },
                             onSettingsClick = { navController.navigate("settings") },

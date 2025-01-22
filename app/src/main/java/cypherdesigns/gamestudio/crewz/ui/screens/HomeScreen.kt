@@ -18,16 +18,22 @@ fun HomeScreen(
     onMenuClick: () -> Unit
 ) {
     val crewId by userViewModel.currentCrewId.collectAsState()
+    val crewName by crewViewModel.currentCrewName.collectAsState()
+    val userName = userViewModel.cachedUserName
+    val firstName = userViewModel.cachedFirstName
 
     // Observe crew members so the list is up to date
     LaunchedEffect(crewId) {
-        crewId?.let { crewViewModel.observeCrewMembers(it) }
+        crewId?.let {
+            crewViewModel.fetchCrewName(it)
+            crewViewModel.observeCrewMembers(it) }
     }
+    val displayName = crewName ?: "Loading..."
 
     Scaffold(
         topBar = {
             AppTopAppBar(
-                title = "Our Crew",
+                title = "$displayName Crew",
                 onSettingsClick = onSettingsClick,
                 onMenuClick = onMenuClick
             )
@@ -41,7 +47,7 @@ fun HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-            Text(text = "Welcome to Crewz", style = androidx.compose.material3.MaterialTheme.typography.displayMedium)
+            Text(text = "Welcome $firstName", style = androidx.compose.material3.MaterialTheme.typography.displayMedium)
             Spacer(modifier = Modifier.height(16.dp))
             Text("Navigate using the bottom navigation bar!")
         }

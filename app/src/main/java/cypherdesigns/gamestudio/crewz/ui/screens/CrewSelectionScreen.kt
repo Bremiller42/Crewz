@@ -103,18 +103,17 @@ fun CrewSelectionScreen(
                         if (currentUserId != null) {
                             crewViewModel.createCrew(
                                 crewName = newCrewName,
-                                ownerUserId = currentUserId,
+                                ownerUserId = userViewModel.currentUserId ?: return@CreateCrewDialog,
+                                ownerUserName = userViewModel.cachedUserName ?: "Unknown",
+                                ownerFirstName = userViewModel.cachedFirstName ?: "Unknown",
+                                ownerLastName = userViewModel.cachedLastName ?: "Unknown",
+                                ownerEmail = userViewModel.cachedEmail ?: "unknown@example.com",
                                 onSuccess = { newCrewId ->
-                                    // Crew created successfully
-                                    newCrewName = ""
+                                    // e.g. set your local UI states or navigate
                                     showCreateCrewDialog = false
                                 },
                                 onFailure = { error ->
-                                    Toast.makeText(
-                                        context,
-                                        "Failed to create crew: $error",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    Toast.makeText(context, "Failed to create crew: $error", Toast.LENGTH_SHORT).show()
                                 }
                             )
                         } else {

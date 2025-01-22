@@ -25,6 +25,7 @@ class CrewRepository {
                 }
                 onResult(crewList)
             }
+
             override fun onCancelled(error: DatabaseError) {
                 println("observeAllCrews error: ${error.message}")
                 onResult(emptyList())
@@ -39,7 +40,11 @@ class CrewRepository {
     // -------------------------------------------
     fun createCrew(
         crewName: String,
-        ownerId: String,
+        ownerUserId: String,
+        ownerUserName: String,
+        ownerFirstName: String,
+        ownerLastName: String,
+        ownerEmail: String,
         onSuccess: (String) -> Unit,
         onFailure: (String) -> Unit
     ) {
@@ -49,14 +54,35 @@ class CrewRepository {
             onFailure("Failed to generate unique crewId")
             return
         }
-        val data = mapOf(
+        val crewData = mapOf(
             "name" to crewName,
-            "ownerId" to ownerId
+            "ownerUserId" to ownerUserId
             // You can add other default fields here if needed
         )
-        crewsRef.child(newCrewId).setValue(data)
+        crewsRef.child(newCrewId).setValue(crewData)
             .addOnSuccessListener {
-                onSuccess(newCrewId)
+                val newMemberFields = mapOf(
+                    "userName" to ownerUserName,
+                    "firstName" to ownerFirstName,
+                    "lastName" to ownerLastName,
+                    "email" to ownerEmail,
+                    "role" to "owner",
+                    "markerColor" to "red",
+                    "locationSharingEnabled" to false,
+                    "online" to true
+                )
+
+                updateCrewUserInfo(
+                    crewId = newCrewId,
+                    userId = ownerUserId,
+                    updates = newMemberFields,
+                    onSuccess = {
+                        onSuccess(newCrewId)
+                    },
+                    onFailure = { error ->
+                        onFailure(error)
+                    }
+                )
             }
             .addOnFailureListener { e ->
                 onFailure(e.message ?: "Unknown error creating crew.")
@@ -82,6 +108,7 @@ class CrewRepository {
                     val colorName = snapshot.getValue(String::class.java) ?: "red"
                     onMarkerColorUpdated(colorName)
                 }
+
                 override fun onCancelled(error: DatabaseError) {
                     println("observeMarkerColor error: ${error.message}")
                 }
@@ -94,6 +121,7 @@ class CrewRepository {
                     val enabled = snapshot.getValue(Boolean::class.java) ?: false
                     onLocationSharingUpdated(enabled)
                 }
+
                 override fun onCancelled(error: DatabaseError) {
                     println("observeLocationSharing error: ${error.message}")
                 }
@@ -116,7 +144,9 @@ class CrewRepository {
         ref.updateChildren(updates)
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { e ->
-                onFailure(e.message ?: "Unknown error while updating /crews/$crewId/members/$userId")
+                onFailure(
+                    e.message ?: "Unknown error while updating /crews/$crewId/members/$userId"
+                )
             }
     }
 
@@ -136,6 +166,7 @@ class CrewRepository {
                     .getValue(Boolean::class.java) ?: false
                 onDetailsUpdated(isEnabled)
             }
+
             override fun onCancelled(error: DatabaseError) {
                 println("observeUserDetailsInCrew error: ${error.message}")
             }
@@ -156,10 +187,12 @@ class CrewRepository {
                 val members = snapshot.children.mapNotNull { child ->
                     val name = child.child("userName").getValue(String::class.java) ?: "Unknown"
                     val online = child.child("online").getValue(Boolean::class.java) ?: false
-                    CrewMember(name, online)
+                    val role = child.child("role").getValue(String::class.java) ?: "member"
+                    CrewMember(name, online, role)
                 }
                 onResult(members)
             }
+
             override fun onCancelled(error: DatabaseError) {
                 println("observeCrewMembers error: ${error.message}")
                 onResult(emptyList())
@@ -185,6 +218,7 @@ class CrewRepository {
             override fun onDataChange(snapshot: DataSnapshot) {
                 onResult(snapshot.getValue(String::class.java) ?: "")
             }
+
             override fun onCancelled(error: DatabaseError) {
                 println("getCrewName error: ${error.message}")
                 onResult("")
@@ -224,6 +258,7 @@ class CrewRepository {
                     println("observeConnectionStatus: user $userId in crew $crewId disconnected")
                 }
             }
+
             override fun onCancelled(error: DatabaseError) {
                 println("observeConnectionStatus error: ${error.message}")
             }
@@ -240,7 +275,8 @@ class CrewRepository {
         userName: String,
         firstName: String,
         lastName: String,
-        email: String
+        email: String,
+        role: String
     ) {
         val newMemberFields = mapOf(
             "userName" to userName,
@@ -248,7 +284,8 @@ class CrewRepository {
             "lastName" to lastName,
             "email" to email,
             "markerColor" to "red",
-            "locationSharingEnabled" to false
+            "locationSharingEnabled" to false,
+            "role" to role
         )
 
         updateCrewUserInfo(
@@ -281,15 +318,20 @@ class CrewRepository {
                         .getValue(Boolean::class.java) ?: false
                     if (locationSharing) {
                         val mapData = mutableMapOf<String, Any>()
-                        mapData["userName"] = child.child("userName").getValue(String::class.java) ?: "Unknown"
-                        mapData["markerColor"] = child.child("markerColor").getValue(String::class.java) ?: "red"
-                        mapData["latitude"] = child.child("latitude").getValue(Double::class.java) ?: 0.0
-                        mapData["longitude"] = child.child("longitude").getValue(Double::class.java) ?: 0.0
+                        mapData["userName"] =
+                            child.child("userName").getValue(String::class.java) ?: "Unknown"
+                        mapData["markerColor"] =
+                            child.child("markerColor").getValue(String::class.java) ?: "red"
+                        mapData["latitude"] =
+                            child.child("latitude").getValue(Double::class.java) ?: 0.0
+                        mapData["longitude"] =
+                            child.child("longitude").getValue(Double::class.java) ?: 0.0
                         newLocations.add(mapData)
                     }
                 }
                 onLocations(newLocations)
             }
+
             override fun onCancelled(error: DatabaseError) {
                 onError(error.message)
             }
@@ -298,4 +340,54 @@ class CrewRepository {
         membersRef.addValueEventListener(listener)
         // If you want to remove it later, store it in a Map<crewId, listener> etc.
     }
+
+    fun setMemberRole(
+        crewId: String,
+        userId: String,
+        role: String,
+        onSuccess: () -> Unit = {},
+        onFailure: (String) -> Unit = {}
+    ) {
+        updateCrewUserInfo(
+            crewId,
+            userId,
+            updates = mapOf("role" to role),
+            onSuccess = onSuccess,
+            onFailure = onFailure
+        )
+    }
+
+    fun observeMemberRole(crewId: String, userId: String, onRoleChanged: (String) -> Unit) {
+        val roleRef = database.getReference("crews/$crewId/members/$userId/role")
+        roleRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val role = snapshot.getValue(String::class.java) ?: "member"
+                onRoleChanged(role)
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                println("observeUserRole: Error: ${error.message}")
+            }
+        })
+    }
+    // CrewRepository.kt
+    fun getMemberRoleOnce(
+        crewId: String,
+        userId: String,
+        onComplete: (String?) -> Unit
+    ) {
+        val roleRef = database.getReference("crews/$crewId/members/$userId/role")
+        roleRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                // Might be null if "role" is not set
+                val role = snapshot.getValue(String::class.java)
+                onComplete(role)
+            }
+            override fun onCancelled(error: DatabaseError) {
+                println("getMemberRoleOnce error: ${error.message}")
+                onComplete(null)
+            }
+        })
+    }
+
 }

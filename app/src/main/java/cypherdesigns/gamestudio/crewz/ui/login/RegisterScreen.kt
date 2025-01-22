@@ -53,12 +53,14 @@ fun RegisterScreen(
     val userName = rememberSaveable { mutableStateOf("") }
     val email = rememberSaveable { mutableStateOf("") }
     val password = rememberSaveable { mutableStateOf("") }
+    val verifyPassword = rememberSaveable { mutableStateOf("") }
     val firstName = rememberSaveable { mutableStateOf("") }
     val lastName = rememberSaveable { mutableStateOf("") }
 
     val auth = FirebaseAuth.getInstance()
 
     var isPasswordVisible by rememberSaveable { mutableStateOf(false) }
+    var isVerifyVisible by rememberSaveable { mutableStateOf(false) }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = colorScheme.primary,
@@ -174,6 +176,36 @@ fun RegisterScreen(
                 keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Password)
             )
 
+            OutlinedTextField(
+                value = verifyPassword.value,
+                onValueChange = { verifyPassword.value = it },
+                label = { Text("Verify Password") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = textFieldColors,
+                visualTransformation = if (isVerifyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    val image = if (isVerifyVisible) {
+                        painterResource(id = R.drawable.ic_visibility_off)
+                    } else {
+                        painterResource(id = R.drawable.ic_visibility)
+                    }
+                    val description = if (isVerifyVisible) {
+                        stringResource(R.string.hide_password)
+                    } else {
+                        stringResource(R.string.show_password)
+                    }
+
+                    IconButton(onClick = { isVerifyVisible = !isVerifyVisible }) {
+                        Icon(
+                            painter = image,
+                            contentDescription = description,
+                            tint = colorScheme.primary
+                        )
+                    }
+                },
+                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Password)
+            )
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // Register Button
@@ -181,6 +213,10 @@ fun RegisterScreen(
                 onClick = {
                     if (userName.value.isBlank()) {
                         Toast.makeText(context, "Username cannot be empty", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    if (password.value != verifyPassword.value) {
+                        Toast.makeText(context, "Passwords do not match", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
 

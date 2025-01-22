@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cypherdesigns.gamestudio.crewz.viewmodel.CrewViewModel
 import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
+import java.util.Locale
 
 @Composable
 fun SettingsScreen(
@@ -26,12 +27,14 @@ fun SettingsScreen(
     val isLocationSharingEnabled by crewViewModel.isLocationSharingEnabled.collectAsState()
     val selectedColor by crewViewModel.markerColorName.collectAsState()
     val currentCrewName by crewViewModel.currentCrewName.collectAsState()
+    val currentCrewRole by crewViewModel.currentCrewRole.collectAsState()
 
     LaunchedEffect(Unit) {
         crewViewModel.observeUserDetails(crewId, userId)
         crewViewModel.observeMarkerColorAndLocationSharing(crewId, userId)
         crewViewModel.fetchCrewName(crewId)
         crewViewModel.observeCrewMembers(crewId)
+        crewViewModel.observeMemberRole(crewId, userId)
     }
 
     Scaffold(
@@ -67,7 +70,12 @@ fun SettingsScreen(
             Text(text = currentCrewName ?: "No Crew",
                 style = androidx.compose.material3.MaterialTheme.typography.headlineSmall
             )
+            Text(text = "Role:", style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
 
+            val displayRole = currentCrewRole?.replaceFirstChar { it.uppercaseChar() } ?: "No Crew"
+            Text(text = displayRole,
+                style = androidx.compose.material3.MaterialTheme.typography.headlineSmall
+            )
             Spacer(Modifier.height(4.dp))
 
             Text(text = "Email:", style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
@@ -134,7 +142,7 @@ fun ColorPicker(
                 "black" -> androidx.compose.ui.graphics.Color.Black
                 else -> androidx.compose.ui.graphics.Color.Red
             }
-            androidx.compose.foundation.layout.Box(
+            Box(
                 modifier = Modifier
                     .size(48.dp)
                     .background(colorRes, shape = androidx.compose.foundation.shape.CircleShape)
