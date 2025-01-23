@@ -17,7 +17,7 @@ private val DarkColorScheme = darkColorScheme(
     secondary = CrewzTealComp,
     tertiary = Pink80,
     background = Color(0xFF161515),
-
+    onBackground = Color(0xFF5e5e5e)
     )
 
 private val LightColorScheme = lightColorScheme(
@@ -25,6 +25,7 @@ private val LightColorScheme = lightColorScheme(
     secondary = CrewzTealComp,
     tertiary = Pink40,
     background = Color(0xFF161515),
+    onBackground = Color(0xFF5e5e5e)
 
 
     /* Other default colors to override

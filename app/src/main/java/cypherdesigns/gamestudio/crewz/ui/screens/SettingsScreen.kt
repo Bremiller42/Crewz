@@ -3,51 +3,54 @@ package cypherdesigns.gamestudio.crewz.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import cypherdesigns.gamestudio.crewz.viewmodel.CrewViewModel
 import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
+import java.util.Locale
 
 @Composable
 fun SettingsScreen(
-    viewModel: UserViewModel,
+    userViewModel: UserViewModel,
+    crewViewModel: CrewViewModel,
     userId: String,
-    onBack: () -> Unit
+    crewId: String,
+    onBack: () -> Unit,
+    onAccountSettings: () -> Unit,
+    onCrewSettings: () -> Unit,
+    onLogout: () -> Unit,
+    onMenuClick: () -> Unit
 ) {
-    val isLocationSharingEnabled by viewModel.isLocationSharingEnabled.collectAsState()
-    val selectedColor by viewModel.markerColorName.collectAsState() // Observe selected color name
-
+    val isLocationSharingEnabled by crewViewModel.isLocationSharingEnabled.collectAsState()
+    val selectedColor by crewViewModel.markerColorName.collectAsState()
+    val currentCrewName by crewViewModel.currentCrewName.collectAsState()
+    val currentCrewRole by crewViewModel.currentCrewRole.collectAsState()
 
     LaunchedEffect(Unit) {
-        viewModel.observeUserDetails(userId)
-        viewModel.observeMarkerColorAndLocationSharing(userId)
+        crewViewModel.observeUserDetails(crewId, userId)
+        crewViewModel.observeMarkerColorAndLocationSharing(crewId, userId)
+        crewViewModel.fetchCrewName(crewId)
+        crewViewModel.observeCrewMembers(crewId)
+        crewViewModel.observeMemberRole(crewId, userId)
     }
 
     Scaffold(
         topBar = {
-            AppTopAppBar(title = "Settings", onSettingsClick = onBack)
+            AppTopAppBar(
+                title = "Settings",
+                crewViewModel = crewViewModel,
+                onAccountSettings = onAccountSettings,
+                onCrewSettings = onCrewSettings,
+                onLogout = onLogout,
+                onMenuClick = onMenuClick,
+                onBack = onBack
+            )
         }
     ) { innerPadding ->
         Column(
@@ -55,63 +58,66 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text(
-                "Profile",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary
+            Text(text = "Profile", style = androidx.compose.material3.MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(4.dp))
+
+            Text(text = "Username:", style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
+            Text(text = "${userViewModel.cachedUserName}", style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
+
+            Text(text = "Name:", style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
+            Text(text = "${userViewModel.cachedFirstName} ${userViewModel.cachedLastName}",
+                style = androidx.compose.material3.MaterialTheme.typography.headlineSmall
+            )
+
+            Spacer(Modifier.height(4.dp))
+
+            Text(text = "Crew:", style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
+            Text(text = currentCrewName ?: "No Crew",
+                style = androidx.compose.material3.MaterialTheme.typography.headlineSmall
+            )
+            Text(text = "Role:", style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
+
+            val displayRole = currentCrewRole?.replaceFirstChar { it.uppercaseChar() } ?: "No Crew"
+            Text(text = displayRole,
+                style = androidx.compose.material3.MaterialTheme.typography.headlineSmall
             )
             Spacer(Modifier.height(4.dp))
-            Text(
-                text = "Name:",
-                style = MaterialTheme.typography.headlineSmall
+
+            Text(text = "Email:", style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
+            Text(text = "${userViewModel.cachedEmail}",
+                style = androidx.compose.material3.MaterialTheme.typography.headlineSmall
             )
-            Text(
-                text = "${viewModel.cachedFirstName} ${viewModel.cachedLastName}",
-                style = MaterialTheme.typography.headlineSmall
-            )
+
             Spacer(Modifier.height(4.dp))
-            Text(
-                text = "Email:",
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Text(
-                text = "${viewModel.cachedEmail}",
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Spacer(Modifier.height(4.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = "Location Sharing",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                androidx.compose.material3.Switch(
+                Text("Location Sharing", style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
+                Switch(
                     checked = isLocationSharingEnabled,
-                    onCheckedChange = { isEnabled ->
-                        viewModel.toggleLocationSharing(userId, isEnabled)
+                    onCheckedChange = { enabled ->
+                        crewViewModel.toggleLocationSharing(crewId, userId, enabled)
                     }
                 )
             }
-            // Color Picker with Slider
-            Text(
-                text = "Marker Color:",
-                style = MaterialTheme.typography.headlineSmall
-            )
 
+            Text("Marker Color:", style = androidx.compose.material3.MaterialTheme.typography.headlineSmall)
+
+            // Our color picker
             ColorPicker(
                 currentColor = selectedColor,
                 onColorSelected = { colorName ->
-                    viewModel.updateMarkerColor(userId, colorName) // Save color selection
+                    crewViewModel.updateMarkerColor(crewId, userId, colorName)
                 }
             )
         }
     }
 }
+
 @Composable
 fun ColorPicker(
     currentColor: String,
@@ -122,39 +128,41 @@ fun ColorPicker(
         "blue", "purple", "magenta", "white", "gray", "black"
     )
 
-    LazyRow(
+    androidx.compose.foundation.lazy.LazyRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp), // Add spacing between items
-        contentPadding = PaddingValues(horizontal = 16.dp) // Add padding to the start and end
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp)
     ) {
-        items(colors) { colorName ->
-            val colorResId = when (colorName) {
-                "red" -> Color.Red
-                "orange" -> Color(0xFFFFA500) // Orange
-                "yellow" -> Color.Yellow
-                "green" -> Color.Green
-                "cyan" -> Color.Cyan
-                "blue" -> Color.Blue
-                "purple" -> Color(0xFF800080) // Purple
-                "magenta" -> Color.Magenta
-                "white" -> Color.White
-                "gray" -> Color.Gray
-                "black" -> Color.Black
-                else -> Color.Red
+        items(colors.size) { index ->
+            val colorName = colors[index]
+            val colorRes = when (colorName) {
+                "red" -> androidx.compose.ui.graphics.Color.Red
+                "orange" -> androidx.compose.ui.graphics.Color(0xFFFFA500)
+                "yellow" -> androidx.compose.ui.graphics.Color.Yellow
+                "green" -> androidx.compose.ui.graphics.Color.Green
+                "cyan" -> androidx.compose.ui.graphics.Color.Cyan
+                "blue" -> androidx.compose.ui.graphics.Color.Blue
+                "purple" -> androidx.compose.ui.graphics.Color(0xFF800080)
+                "magenta" -> androidx.compose.ui.graphics.Color.Magenta
+                "white" -> androidx.compose.ui.graphics.Color.White
+                "gray" -> androidx.compose.ui.graphics.Color.Gray
+                "black" -> androidx.compose.ui.graphics.Color.Black
+                else -> androidx.compose.ui.graphics.Color.Red
             }
-
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(colorResId, shape = CircleShape)
+                    .background(colorRes, shape = androidx.compose.foundation.shape.CircleShape)
                     .border(
                         width = 2.dp,
-                        color = if (colorName == currentColor) Color.Black else Color.Transparent,
-                        shape = CircleShape
+                        color = if (colorName == currentColor) androidx.compose.ui.graphics.Color.Black
+                        else androidx.compose.ui.graphics.Color.Transparent,
+                        shape = androidx.compose.foundation.shape.CircleShape
                     )
-                    .clickable { onColorSelected(colorName) }
+                    .clickable {
+                        onColorSelected(colorName)
+                    }
             )
         }
     }
 }
-

@@ -1,9 +1,6 @@
 package cypherdesigns.gamestudio.crewz.viewmodel
 
 import android.content.Context
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import cypherdesigns.gamestudio.crewz.data.repository.ChatRepository
 import cypherdesigns.gamestudio.crewz.ui.chat.Chatroom
@@ -11,7 +8,6 @@ import cypherdesigns.gamestudio.crewz.ui.chat.Message
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import com.google.firebase.firestore.FirebaseFirestore
 
 class ChatViewModel : ViewModel() {
 
@@ -23,34 +19,50 @@ class ChatViewModel : ViewModel() {
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages: StateFlow<List<Message>> = _messages.asStateFlow()
 
-
-    fun fetchChatrooms() {
-        repository.getChatrooms { chatrooms ->
+    /**
+     * Fetch all chatrooms for a crew.
+     */
+    fun fetchChatrooms(crewId: String) {
+        repository.getChatrooms(crewId) { chatrooms ->
             _chatrooms.value = chatrooms
         }
     }
 
-    fun fetchMessages(chatroomId: String) {
-        repository.getMessages(chatroomId) { messages ->
+    /**
+     * Fetch messages for a specific chatroom in a crew.
+     */
+    fun fetchMessages(crewId: String, chatroomId: String) {
+        repository.getMessages(crewId, chatroomId) { messages ->
             _messages.value = messages
         }
     }
 
-    fun sendMessage(chatroomId: String, message: Message) {
-        repository.sendMessage(chatroomId, message) { success ->
-            // Handle success/failure if needed
+    /**
+     * Send a message to a specific chatroom in a crew.
+     */
+    fun sendMessage(crewId: String, chatroomId: String, message: Message) {
+        repository.sendMessage(crewId, chatroomId, message) { success ->
+            if (!success) {
+                println("Failed to send message to chatroom $chatroomId in crew $crewId")
+            }
         }
     }
-    fun createChatroom(name: String, context: Context) {
+
+    /**
+     * Create a new chatroom for a crew.
+     */
+    fun createChatroom(crewId: String, chatroomName: String, context: Context) {
         val chatroom = Chatroom(
             id = System.currentTimeMillis().toString(),
-            name = name
+            name = chatroomName,
+            lastMessage = "",
+            lastMessageTimeStamp = 0L
         )
-        repository.createChatroom(chatroom, context) { success ->
+        repository.createChatroom(crewId, chatroom, context) { success ->
             if (success) {
-                fetchChatrooms()
+                fetchChatrooms(crewId)
             } else {
-                // Handle failure if needed
+                println("Failed to create chatroom $chatroomName for crew $crewId")
             }
         }
     }

@@ -1,25 +1,51 @@
 package cypherdesigns.gamestudio.crewz.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import cypherdesigns.gamestudio.crewz.viewmodel.CrewViewModel
+import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
 
 @Composable
-fun HomeScreen(onSettingsClick: () -> Unit) {
-    Scaffold(
-        topBar = { AppTopAppBar(title = "Our Crew", onSettingsClick = onSettingsClick ) },
+fun HomeScreen(
+    userViewModel: UserViewModel,
+    crewViewModel: CrewViewModel,
+    onAccountSettings: () -> Unit,
+    onCrewSettings: () -> Unit,
+    onLogout: () -> Unit,
+    onMenuClick: () -> Unit,
+    onBack: () -> Unit
+) {
+    val crewId by userViewModel.currentCrewId.collectAsState()
+    val crewName by crewViewModel.currentCrewName.collectAsState()
+    val userName = userViewModel.cachedUserName
+    val firstName = userViewModel.cachedFirstName
 
-        ) { innerPadding ->
+    // Observe crew members so the list is up to date
+    LaunchedEffect(crewId) {
+        crewId?.let {
+            crewViewModel.fetchCrewName(it)
+            crewViewModel.observeCrewMembers(it) }
+    }
+    val displayName = crewName ?: "Loading..."
+
+    Scaffold(
+        topBar = {
+            AppTopAppBar(
+                title = displayName,
+                crewViewModel = crewViewModel,
+                onAccountSettings = onAccountSettings,
+                onCrewSettings = onCrewSettings,
+                onLogout = onLogout,
+                onMenuClick = onMenuClick,
+                onBack = onBack
+            )
+        }
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -28,10 +54,8 @@ fun HomeScreen(onSettingsClick: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-            Text(text = "Welcome to Crewz", style = MaterialTheme.typography.displayMedium)
-
+            Text(text = "Welcome $firstName", style = androidx.compose.material3.MaterialTheme.typography.displayMedium)
             Spacer(modifier = Modifier.height(16.dp))
-
             Text("Navigate using the bottom navigation bar!")
         }
     }

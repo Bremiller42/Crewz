@@ -2,32 +2,38 @@ package cypherdesigns.gamestudio.crewz.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.database.FirebaseDatabase
 import cypherdesigns.gamestudio.crewz.data.ImageData
+import cypherdesigns.gamestudio.crewz.data.repository.GalleryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class GalleryViewModel : ViewModel() {
+    private val galleryRepository = GalleryRepository()
+
     private val _imageUrls = MutableStateFlow<List<ImageData>>(emptyList())
     val imageUrls: StateFlow<List<ImageData>> = _imageUrls.asStateFlow()
 
-    fun fetchImageUrls() {
-        val databaseReference = FirebaseDatabase.getInstance().getReference("images")
-        databaseReference.get()
-            .addOnSuccessListener { snapshot ->
-                val imageList = mutableListOf<ImageData>()
-                snapshot.children.forEach { child ->
-                    val url = child.child("url").getValue(String::class.java) ?: ""
-                    val uploadedBy = child.child("uploadedBy").getValue(String::class.java) ?: "Unknown"
-                    imageList.add(ImageData(url, uploadedBy))
-                }
-                _imageUrls.value = imageList // Assuming _imageUrls is a MutableStateFlow in your ViewModel
+    /**
+     * Fetch images for a specific crew.
+     */
+    fun fetchImages(crewId: String) {
+        viewModelScope.launch {
+            galleryRepository.fetchImages(crewId) { images ->
+                _imageUrls.value = images
             }
-            .addOnFailureListener {
-                println("Failed to fetch images: ${it.message}")
-            }
+        }
     }
 
+    /**
+     * Upload an image to a specific crew's gallery.
+     */
+    fun uploadImage(crewId: String, imageUrl: String, uploadedBy: String) {
+        viewModelScope.launch {
+            galleryRepository.uploadImage(crewId, imageUrl, uploadedBy)
+            // Optionally refresh the gallery after upload
+            fetchImages(crewId)
+        }
+    }
 }

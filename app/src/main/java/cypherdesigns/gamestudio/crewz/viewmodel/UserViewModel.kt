@@ -4,77 +4,117 @@ import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth
 import cypherdesigns.gamestudio.crewz.data.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class UserViewModel : ViewModel() {
+
     private val userRepository = UserRepository()
-    val currentUserId: String? = FirebaseAuth.getInstance().currentUser?.uid
-    val cachedFirstName: String?
-        get() = userRepository.cachedUserFirstName
-    val cachedLastName: String?
-        get() = userRepository.cachedUserLastName
-    val cachedEmail: String?
-        get() = userRepository.cachedUserEmail
-    val cachedLocationSharingEnabled: Boolean
-        get() = userRepository.cachedLocationSharingEnabled
 
-    // State for location sharing
-    private val _isLocationSharingEnabled = MutableStateFlow(false)
-    val isLocationSharingEnabled = _isLocationSharingEnabled.asStateFlow()
+    private val _currentUserId = MutableStateFlow<String?>(null)
+    val currentUserId: StateFlow<String?> = _currentUserId.asStateFlow()
 
-    // State for marker color
-    private val _markerColorName = MutableStateFlow("red") // Default to red
-    val markerColorName = _markerColorName.asStateFlow()
+    // The user's crewId from /users/{userId}/crewId
+    private val _currentCrewId = MutableStateFlow<String?>(null)
+    val currentCrewId: StateFlow<String?> = _currentCrewId.asStateFlow()
 
-    /**
-     * Fetch and cache user details from Firestore.
-     */
+    // Cached user data
+    val cachedUserName: String? get() = userRepository.cachedUserName
+    val cachedFirstName: String? get() = userRepository.cachedUserFirstName
+    val cachedLastName:  String? get() = userRepository.cachedUserLastName
+    val cachedEmail:     String? get() = userRepository.cachedUserEmail
+
+    // -------------------------------------------------
+    // Reading user info
+    // -------------------------------------------------
     fun fetchUserDetails(userId: String) {
         userRepository.fetchAndCacheUserDetails(userId)
     }
 
-    /**
-     * Observe user details from Firestore and update state.
-     */
-    fun observeUserDetails(userId: String) {
-        userRepository.observeUserDetails(userId) { isEnabled ->
-            _isLocationSharingEnabled.value = isEnabled
+    fun checkUsernameUnique(userName: String, onResult: (Boolean) -> Unit) {
+        userRepository.isUsernameUnique(userName, onResult)
+    }
+
+    fun fetchCrewId(userId: String, onComplete: (String?) -> Unit) {
+        userRepository.getUserCrewId(userId) { crewId ->
+            _currentCrewId.value = if (crewId.isEmpty()) null else crewId
+            onComplete(_currentCrewId.value)
         }
     }
 
+    // -------------------------------------------------
+    // Writing user info
+    // -------------------------------------------------
+
+    fun setUserId(uid: String?) {
+        _currentUserId.value = uid
+    }
+
     /**
-     * Observe marker color and location sharing status in real-time.
+     * Convenience method to update only the 'crewId' field in /users/{userId}.
+     * Internally calls updateGlobalUserInfo(...) with a single field.
      */
-    fun observeMarkerColorAndLocationSharing(userId: String) {
-        userRepository.observeMarkerColorAndLocationSharing(
-            userId,
-            onMarkerColorUpdated = { colorName ->
-                _markerColorName.value = colorName
+    fun updateCrewId(crewId: String) {
+        val userId = currentUserId ?: return
+        updateGlobalUserInfo(
+            updates = mapOf("crewId" to crewId),
+            onSuccess = {
+                println("Updated crewId to $crewId for user=$userId")
+                _currentCrewId.value = crewId
             },
-            onLocationSharingUpdated = { isEnabled ->
-                _isLocationSharingEnabled.value = isEnabled
+            onFailure = {
+                println("updateCrewId error: $it")
             }
         )
     }
 
     /**
-     * Update marker color in Realtime Database.
+     * Convenience method to update userName, firstName, lastName, email, and crewId in /users/{userId}.
+     * Internally calls updateGlobalUserInfo(...) with those fields.
      */
-    fun updateMarkerColor(userId: String, colorName: String) {
-        userRepository.updateMarkerColor(userId, colorName, _isLocationSharingEnabled.value)
+    fun updateUserInfoInUserNode(
+        crewId: String,
+        userName: String,
+        firstName: String,
+        lastName: String,
+        email: String
+    ) {
+        val userId = currentUserId ?: return
+        val updates = mapOf(
+            "userName" to userName,
+            "firstName" to firstName,
+            "lastName"  to lastName,
+            "email"     to email,
+            "crewId"    to crewId
+        )
+        updateGlobalUserInfo(
+            updates = updates,
+            onSuccess = {
+                println("updateUserInfoInUserNode success for $userId")
+            },
+            onFailure = {
+                println("updateUserInfoInUserNode failure: $it")
+            }
+        )
     }
 
     /**
-     * Toggle location sharing and update state.
+     * The universal method for updating any fields in /users/{userId}.
+     * All specialized convenience methods call this internally.
      */
-    fun toggleLocationSharing(userId: String, isEnabled: Boolean) {
-        userRepository.updateLocationSharing(userId, isEnabled) { success ->
-            if (success) {
-                _isLocationSharingEnabled.value = isEnabled
-                println("Location sharing toggled successfully")
-            } else {
-                println("Failed to toggle location sharing")
-            }
-        }
+    fun updateGlobalUserInfo(
+        updates: Map<String, Any>,
+        onSuccess: () -> Unit = {},
+        onFailure: (String) -> Unit = {}
+    ) {
+        val uid = _currentUserId.value
+            ?: return onFailure("No user ID set in ViewModel")
+
+        userRepository.updateGlobalUserInfo(
+            userId = uid,
+            updates = updates,
+            onSuccess = onSuccess,
+            onFailure = onFailure
+        )
     }
 }

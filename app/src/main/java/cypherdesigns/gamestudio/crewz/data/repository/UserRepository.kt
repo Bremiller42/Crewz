@@ -4,155 +4,146 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
-import com.google.firebase.firestore.FirebaseFirestore
 
 class UserRepository {
-    private val firestore = FirebaseFirestore.getInstance()
-    private val database = FirebaseDatabase.getInstance().getReference("userLocations")
 
+    private val database = FirebaseDatabase.getInstance()
+
+    var cachedUserName: String? = null
+        private set
     var cachedUserFirstName: String? = null
         private set
     var cachedUserLastName: String? = null
         private set
     var cachedUserEmail: String? = null
         private set
-    var cachedLocationSharingEnabled: Boolean = false
-        private set
 
-    fun observeMarkerColorAndLocationSharing(
-        userId: String,
-        onMarkerColorUpdated: (String) -> Unit,
-        onLocationSharingUpdated: (Boolean) -> Unit
-    ) {
-        database.child(userId).apply {
-            // Observe marker color
-            child("markerColor").addValueEventListener(object : ValueEventListener {
+    // ---------------------------------------------------------------------
+    // READ METHODS
+    // ---------------------------------------------------------------------
+
+    /**
+     * Check if userName is unique across /users
+     */
+    fun isUsernameUnique(userName: String, onResult: (Boolean) -> Unit) {
+        database.getReference("users")
+            .orderByChild("userName")
+            .equalTo(userName)
+            .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    val colorName = snapshot.getValue(String::class.java) ?: "red"
-                    onMarkerColorUpdated(colorName)
+                    onResult(!snapshot.exists()) // True if no node found
                 }
-
                 override fun onCancelled(error: DatabaseError) {
-                    println("Error observing marker color: ${error.message}")
+                    println("isUsernameUnique: error: ${error.message}")
+                    onResult(false)
                 }
             })
-
-            // Observe location sharing status
-            child("locationSharingEnabled").addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val isLocationSharingEnabled = snapshot.getValue(Boolean::class.java) ?: false
-                    onLocationSharingUpdated(isLocationSharingEnabled)
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    println("Error observing location sharing: ${error.message}")
-                }
-            })
-        }
     }
 
-
-    fun updateMarkerColor(userId: String, colorName: String, isLocationSharingEnabled: Boolean) {
-        database.child(userId).apply {
-            // Update marker color
-            child("markerColor").setValue(colorName)
-                .addOnSuccessListener {
-                    println("Marker color updated to: $colorName")
-                }
-                .addOnFailureListener { exception ->
-                    println("Failed to update marker color: ${exception.message}")
-                }
-
-            // Update location sharing status
-            child("locationSharingEnabled").setValue(isLocationSharingEnabled)
-                .addOnSuccessListener {
-                    println("Location sharing status updated to: $isLocationSharingEnabled")
-                }
-                .addOnFailureListener { exception ->
-                    println("Failed to update location sharing: ${exception.message}")
-                }
-        }
-    }
-
-
+    /**
+     * Fetch user details from /users/{userId} and cache them.
+     */
     fun fetchAndCacheUserDetails(userId: String) {
-        println("Fetching user details from Firestore for userId: $userId")
-        firestore.collection("users").document(userId).get()
-            .addOnSuccessListener { documentSnapshot ->
-                if (documentSnapshot.exists()) {
-                    println("Document Snapshot: ${documentSnapshot.data}")
-
-                    cachedUserFirstName = documentSnapshot.getString("firstName")
-                    cachedUserLastName = documentSnapshot.getString("lastName")
-                    cachedUserEmail = documentSnapshot.getString("email")
-                    cachedLocationSharingEnabled =
-                        documentSnapshot.getBoolean("isLocationSharingEnabled") ?: false
-                    println("Cached user first name: $cachedUserFirstName")
-                    println("Cached user last name: $cachedUserLastName")
-                    println("Cached user email: $cachedUserEmail")
-                    println("Cached user location sharing: $cachedLocationSharingEnabled")
-
+        database.getReference("users")
+            .child(userId)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                if (snapshot.exists()) {
+                    cachedUserName = snapshot.child("userName").getValue(String::class.java)
+                    cachedUserFirstName = snapshot.child("firstName").getValue(String::class.java)
+                    cachedUserLastName = snapshot.child("lastName").getValue(String::class.java)
+                    cachedUserEmail = snapshot.child("email").getValue(String::class.java)
                 } else {
-                    println("No user details found in Firestore for userId: $userId")
+                    println("No user details found for $userId")
                 }
             }
             .addOnFailureListener {
-                println("Failed to fetch user details from Firestore: ${it.message}")
+                println("fetchAndCacheUserDetails failed: ${it.message}")
             }
     }
 
-    fun observeUserDetails(userId: String, onDetailsUpdated: (Boolean) -> Unit) {
-        firestore.collection("users").document(userId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    println("Error observing user details: ${error.message}")
-                    return@addSnapshotListener
-                }
-                if (snapshot != null && snapshot.exists()) {
-                    val isLocationSharingEnabled =
-                        snapshot.getBoolean("isLocationSharingEnabled") ?: false
-                    cachedLocationSharingEnabled = isLocationSharingEnabled
-                    onDetailsUpdated(isLocationSharingEnabled)
-                    println("Real-time update: isLocationSharingEnabled = $isLocationSharingEnabled")
-                }
-            }
-    }
-
-    fun updateLocationSharing(userId: String, isEnabled: Boolean, onComplete: (Boolean) -> Unit) {
-        val updates = mapOf("isLocationSharingEnabled" to isEnabled)
-
-        firestore.collection("users").document(userId).update(updates)
-            .addOnSuccessListener {
-                cachedLocationSharingEnabled = isEnabled
-                println("Location Sharing updated successfully: $isEnabled")
-                onComplete(true)
-            }
-            .addOnFailureListener { exception ->
-                println("Failed to update location sharing: ${exception.message}")
-                onComplete(false)
-            }
-
-        database.child(userId).child("locationSharingEnabled").setValue(isEnabled)
-            .addOnSuccessListener {
-                println("Location sharing updated to: $isEnabled")
-            }
-            .addOnFailureListener { exception ->
-                println("Failed to update location sharing: ${exception.message}")
-            }
-    }
-    fun observeUserLocationSharing(userId: String, onLocationSharingUpdated: (Boolean) -> Unit) {
-        database.child(userId).child("locationSharingEnabled")
-            .addValueEventListener(object : ValueEventListener {
+    /**
+     * Return crewId from /users/{userId}/crewId
+     */
+    fun getUserCrewId(userId: String, onResult: (String) -> Unit) {
+        database.getReference("users/$userId/crewId")
+            .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    val isLocationSharingEnabled = snapshot.getValue(Boolean::class.java) ?: false
-                    onLocationSharingUpdated(isLocationSharingEnabled)
+                    onResult(snapshot.getValue(String::class.java) ?: "")
                 }
-
                 override fun onCancelled(error: DatabaseError) {
-                    println("Failed to observe location sharing: ${error.message}")
+                    println("getUserCrewId error: ${error.message}")
                 }
             })
     }
 
-}
+    // ---------------------------------------------------------------------
+    // WRITE METHODS
+    // ---------------------------------------------------------------------
 
+    /**
+     * A single flexible method for updating any fields in /users/{userId}.
+     * This is used internally by any convenience methods, or directly by callers.
+     */
+    fun updateGlobalUserInfo(
+        userId: String,
+        updates: Map<String, Any>,
+        onSuccess: () -> Unit = {},
+        onFailure: (String) -> Unit = {}
+    ) {
+        val userRef = database.getReference("users/$userId")
+        userRef.updateChildren(updates)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { e ->
+                onFailure(e.message ?: "Unknown error updating user info for $userId.")
+            }
+    }
+
+    /**
+     * Convenience method to update the "crewId" field for a user in /users/{userId}.
+     * Under the hood, calls updateGlobalUserInfo with a single field map.
+     */
+    fun updateUserCrewId(userId: String, crewId: String) {
+        updateGlobalUserInfo(
+            userId,
+            updates = mapOf("crewId" to crewId),
+            onSuccess = {
+                println("updateUserCrewId success -> crew=$crewId for user=$userId")
+            },
+            onFailure = {
+                println("updateUserCrewId error: $it")
+            }
+        )
+    }
+
+    /**
+     * Convenience method to update userName, firstName, lastName, email, and crewId
+     * for a user in /users/{userId}.
+     */
+    fun updateUserInfoInUserNode(
+        userId: String,
+        userName: String,
+        firstName: String,
+        lastName: String,
+        email: String,
+        crewId: String
+    ) {
+        val updates = mapOf(
+            "userName" to userName,
+            "firstName" to firstName,
+            "lastName" to lastName,
+            "email" to email,
+            "crewId" to crewId
+        )
+        updateGlobalUserInfo(
+            userId,
+            updates,
+            onSuccess = {
+                println("updateUserInfoInUserNode success for $userId")
+            },
+            onFailure = {
+                println("updateUserInfoInUserNode failure: $it")
+            }
+        )
+    }
+}

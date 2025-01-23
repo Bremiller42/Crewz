@@ -7,22 +7,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,12 +20,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.StorageReference
 import cypherdesigns.gamestudio.crewz.viewmodel.GalleryViewModel
-import cypherdesigns.gamestudio.crewz.viewmodel.ChatViewModel
 import cypherdesigns.gamestudio.crewz.viewmodel.UserViewModel
-
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -52,24 +39,22 @@ fun UploadImageScreen(
 ) {
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     val context = LocalContext.current
+    val crewId by userViewModel.currentCrewId.collectAsState()  // <-- collect as state
+
     val buttonColors = ButtonDefaults.buttonColors(
-        containerColor = colorScheme.primary,
+        containerColor = MaterialTheme.colorScheme.primary,
         contentColor = Color.Black
     )
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            Toast.makeText(context, "Permission Granted", Toast.LENGTH_SHORT).show()
-        } else {
-            Toast.makeText(context, "Permission Denied", Toast.LENGTH_SHORT).show()
-        }
-    }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         imageUri = uri
+    }
+
+    // Launch image picker automatically
+    LaunchedEffect(Unit) {
+        launcher.launch("image/*")
     }
 
     Column(
@@ -80,16 +65,6 @@ fun UploadImageScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Button(onClick = {
-            val permission = android.Manifest.permission.READ_MEDIA_IMAGES
-            permissionLauncher.launch(permission)
-            launcher.launch("image/*")
-        }) {
-            Text(text = "Select Image")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
         imageUri?.let { uri ->
             AsyncImage(
                 model = uri,
@@ -97,7 +72,6 @@ fun UploadImageScreen(
                 modifier = Modifier.height(200.dp),
                 contentScale = ContentScale.Crop
             )
-
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
@@ -106,10 +80,15 @@ fun UploadImageScreen(
                         val uploadedUrl = uploadImage(storageReference, uri)
                         val uploaderName = userViewModel.cachedFirstName ?: "Unknown User"
                         if (uploadedUrl != null) {
-                            saveImageUrlToDatabase(uploadedUrl, uploaderName)
-                            galleryViewModel.fetchImageUrls()
+                            saveImageUrlToDatabase(
+                                crewId,
+                                uploadedUrl,
+                                uploaderName,
+                                galleryViewModel,
+                            )
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(context, "Image Uploaded", Toast.LENGTH_SHORT).show()
+                                onNavigateToGalleryScreen()
                             }
                         } else {
                             withContext(Dispatchers.Main) {
@@ -117,13 +96,12 @@ fun UploadImageScreen(
                             }
                         }
                     }
-                    onNavigateToGalleryScreen()
                 },
                 colors = buttonColors
             ) {
-                Text(text = "Upload Image")
+                Text("Upload Image")
             }
-        }
+        } ?: Text("No image selected", style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -132,10 +110,7 @@ suspend fun uploadImage(storageReference: StorageReference, uri: Uri): String? {
         val fileName = uri.lastPathSegment ?: "image_${System.currentTimeMillis()}"
         val imageRef = storageReference.child("images/$fileName")
 
-        // Upload image to storage
         imageRef.putFile(uri).await()
-
-        // Get the download URL
         imageRef.downloadUrl.await().toString()
     } catch (e: Exception) {
         println("Failed to upload image: ${e.message}")
@@ -143,18 +118,12 @@ suspend fun uploadImage(storageReference: StorageReference, uri: Uri): String? {
     }
 }
 
-fun saveImageUrlToDatabase(url: String, uploaderName: String) {
-    val databaseReference = FirebaseDatabase.getInstance().getReference("images")
-    val key = databaseReference.push().key ?: return
-    val imageData = mapOf(
-        "url" to url,
-        "uploadedBy" to uploaderName
-    )
-    databaseReference.child(key).setValue(imageData)
-        .addOnSuccessListener {
-            println("Image URL saved to database successfully.")
-        }
-        .addOnFailureListener {
-            println("Failed to save image URL: ${it.message}")
-        }
+fun saveImageUrlToDatabase(
+    crewId: String?,
+    url: String,
+    uploaderName: String,
+    galleryViewModel: GalleryViewModel
+) {
+    if (crewId == null) return
+    galleryViewModel.uploadImage(crewId, url, uploaderName)
 }
