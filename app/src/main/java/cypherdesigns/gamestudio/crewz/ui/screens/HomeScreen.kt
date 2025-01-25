@@ -56,7 +56,7 @@ fun HomeScreen(
         ) {
             Text(text = "Welcome $firstName", style = androidx.compose.material3.MaterialTheme.typography.displayMedium)
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Navigate using the bottom navigation bar! Git check")
+            Text("Navigate using the bottom navigation bar!")
         }
     }
 }
