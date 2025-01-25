@@ -48,7 +48,7 @@ import kotlinx.coroutines.flow.first
 @Composable
 fun LoginScreen(
     viewModel: UserViewModel,
-    onLoginSuccess: (Context) -> Unit,
+    onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit
 ) {
     val context = LocalContext.current
@@ -83,7 +83,7 @@ fun LoginScreen(
             delay(500)
             showBiometricPrompt(
                 activity = context as FragmentActivity,
-                onLoginSuccess = { onLoginSuccess(context) },
+                onLoginSuccess = { onLoginSuccess() },
                 onLoginFailure = { err ->
                     Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
                 },
@@ -156,7 +156,7 @@ fun LoginScreen(
                         loginUser(
                             auth, viewModel,
                             email.value, password.value, context,
-                            onLoginSuccess = { onLoginSuccess(context) },
+                            onLoginSuccess = { onLoginSuccess() },
                             onLoginFailure = { e -> Toast.makeText(context, e, Toast.LENGTH_LONG).show() }
                         )
                     }
@@ -169,7 +169,7 @@ fun LoginScreen(
                     loginUser(
                         auth, viewModel,
                         email.value, password.value, context,
-                        onLoginSuccess = { onLoginSuccess(context) },
+                        onLoginSuccess = { onLoginSuccess() },
                         onLoginFailure = { e -> Toast.makeText(context, e, Toast.LENGTH_LONG).show() }
                     )
                 },
@@ -184,7 +184,7 @@ fun LoginScreen(
                 onClick = {
                     showBiometricPrompt(
                         activity = context as FragmentActivity,
-                        onLoginSuccess = { onLoginSuccess(context) },
+                        onLoginSuccess = { onLoginSuccess() },
                         onLoginFailure = { e ->
                             Toast.makeText(context, e, Toast.LENGTH_SHORT).show()
                         },

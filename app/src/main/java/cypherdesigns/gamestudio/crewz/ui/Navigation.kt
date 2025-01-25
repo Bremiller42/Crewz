@@ -70,7 +70,10 @@ fun AppNavigation() {
 
     // Observe the user's crewId (stored in /users/{userId}/crewId)
     val crewId by userViewModel.currentCrewId.collectAsState()
-    val userId = auth.currentUser?.uid ?: return
+    val userId = auth.currentUser?.uid
+    if (userId != null) {
+        userViewModel.setUserId(userId)
+    }
     val storageReference = FirebaseStorage.getInstance().reference
 
     // Drawer state
@@ -84,7 +87,7 @@ fun AppNavigation() {
         crewId?.let { cId ->
             // Observe the crew's members and user connection status
             crewViewModel.observeCrewMembers(cId)
-            crewViewModel.observeConnectionStatus(cId, userId)
+            crewViewModel.observeConnectionStatus(cId, userId!!)
             crewViewModel.observeMemberRole(cId, userId)
 
             // We can also attach a lifecycle observer that sets user online/offline
@@ -139,7 +142,7 @@ fun AppNavigation() {
                             viewModel = userViewModel,
                             onLoginSuccess = {
                                 userViewModel.setUserId(userId)
-                                userViewModel.fetchCrewId(userId) { fetchedCrewId ->
+                                userViewModel.fetchCrewId(userId!!) { fetchedCrewId ->
                                     if (!fetchedCrewId.isNullOrEmpty()) {
                                         // Mark them online in the crew
                                         crewViewModel.updateOnlineStatus(
@@ -444,7 +447,7 @@ fun AppNavigation() {
                             SettingsScreen(
                                 userViewModel = userViewModel,
                                 crewViewModel = crewViewModel,
-                                userId = userId,
+                                userId = userId!!,
                                 crewId = crewId!!,
                                 onBack = { navController.popBackStack() },
                                 onAccountSettings = {
@@ -499,7 +502,7 @@ fun AppNavigation() {
                             crewViewModel = crewViewModel,
                             onCrewSelected = { selectedCrewId ->
                                 // 1) Read the user's existing role in this crew (if any)
-                                crewViewModel.getMemberRoleOnce(selectedCrewId, userId) { existingRole ->
+                                crewViewModel.getMemberRoleOnce(selectedCrewId, userId!!) { existingRole ->
                                     // Decide final role: if they're already "owner", keep it; else "member"
                                     val finalRole = if (existingRole == "owner") "owner" else "member"
                                     println("onCrewSelected: Final Role: $finalRole")
